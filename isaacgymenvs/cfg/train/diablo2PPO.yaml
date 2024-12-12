@@ -1,0 +1,82 @@
+params:
+  seed: ${...seed}
+
+  algo:
+    name: a2c_continuous
+
+  model:
+    name: continuous_a2c_logstd
+
+  network:
+    name: actor_critic
+    separate: False
+
+    space:
+      continuous:
+        mu_activation: None
+        sigma_activation: None
+        mu_init:
+          name: default
+        sigma_init:
+          name: const_initializer
+          val: 0
+        fixed_sigma: True
+
+    mlp:
+      units: [512, 512, 128]
+      activation: elu
+      d2rl: False
+
+      initializer:
+        name: default
+      regularizer:
+        name: None
+
+  load_checkpoint: ${if:${...checkpoint},True,False} # flag which sets whether to load the checkpoint
+  load_path: ${...checkpoint} # path to the checkpoint to load
+
+  config:
+    name: ${resolve_default:diablo2,${....experiment}}
+    full_experiment_name: ${.name}
+    env_name: rlgpu
+    multi_gpu: ${....multi_gpu}
+    ppo: True
+    mixed_precision: True
+    normalize_input: True
+    normalize_value: True
+    value_bootstrap: True
+    num_actors: ${....task.env.numEnvs}
+    reward_shaper:
+      scale_value: 1.0
+    normalize_advantage: True
+    gamma: 0.99
+    tau: 0.95
+    e_clip: 0.2
+    learning_rate: 5e-4
+    lr_schedule: adaptive
+    kl_threshold: 0.008 #from .control_module import control  # 根据您的项目结构调整导入路径
+    score_to_win: 20000
+    max_epochs: ${resolve_default:600,${....max_iterations}}
+    save_best_after: 100
+    save_frequency: 100
+    print_stats: True
+    grad_norm: 1.0
+    entropy_coef: 0.0
+    truncate_grads: True
+   
+    horizon_length: 64
+    minibatch_size: 32768 #65536
+    mini_epochs: 5
+    critic_coef: 4
+    clip_value: True
+    seq_len: 4
+    bounds_loss_coef: 0.0001
+
+
+    control:
+    # PD Drive parameters:
+    stiffness: 10000.0  # [N*m/rad]
+    damping: 2000.0     # [N*m*s/rad]
+    actionScale: 0.5
+    controlFrequencyInv: 1 # 60 Hz
+
