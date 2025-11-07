@@ -3,7 +3,7 @@
      Commit Version: 1.5.1-0-g916b5db  Build Version: 1.5.7152.31018
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot
-  name="323Assembase_limit3">
+  name="centaur1">
   <link
     name="base_link">
     <inertial>
@@ -213,7 +213,7 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-1.9635"
+      lower="0"
       upper="1.9635"
       effort="0"
       velocity="0.2" />
@@ -1026,7 +1026,7 @@
       xyz="0 0 -1" />
     <limit
       lower="-1.9635"
-      upper="0"
+      upper="1.9635"
       effort="87"
       velocity="1.5" />
   </joint>
@@ -1223,6 +1223,9 @@
       upper="1.5708"
       effort="20"
       velocity="0.2" />
+     <dynamics
+      damping="0.0"
+      friction="0.052"/>
   </joint>
   <link
     name="r_index_middle_Link">
@@ -1281,6 +1284,9 @@
       upper="1.5708"
       effort="20"
       velocity="0.2" />
+    <dynamics
+      damping="0.0"
+      friction="0.015" />
   </joint>
   <link
     name="r_index_tip_Link">
@@ -1339,6 +1345,9 @@
       upper="1.5708"
       effort="20"
       velocity="0.2" />
+     <dynamics
+      damping="0.0"
+      friction="0.022" />
   </joint>
   <link
     name="r_mid_base_Link">
@@ -1397,6 +1406,9 @@
       upper="1.5708"
       effort="20"
       velocity="0.2" />
+    <dynamics
+      damping="0.0"
+      friction="0.052" />
   </joint>
   <link
     name="r_mid_middle_Link">
@@ -1455,6 +1467,10 @@
       upper="1.5708"
       effort="20"
       velocity="0.2" />
+    <dynamics
+      damping="0.0"
+      friction="0.015" />
+
   </joint>
   <link
     name="r_mid_tip_Link">
@@ -1513,6 +1529,9 @@
       upper="1.5708"
       effort="20"
       velocity="0.2" />
+    <dynamics
+      damping="0.0"
+      friction="0.022" />
   </joint>
   <link
     name="r_thumb_base_Link">
@@ -1571,6 +1590,9 @@
       upper="1.5708"
       effort="20"
       velocity="0.2" />
+    <dynamics
+      damping="0.0"
+      friction="0.052" />
   </joint>
   <link
     name="r_thumb_middle_Link">
@@ -1629,6 +1651,9 @@
       upper="1.5708"
       effort="20"
       velocity="0.2" />
+    <dynamics
+      damping="0.0"
+      friction="0.015" />      
   </joint>
   <link
     name="r_thumb_tip_Link">
@@ -1687,6 +1712,9 @@
       upper="1.5708"
       effort="20"
       velocity="0.2" />
+    <dynamics
+      damping="0.0"
+      friction="0.022" />
   </joint>
 
 
@@ -1825,7 +1853,7 @@
       <material name="silver"/>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="-0.00036 -0.215353 -0.099"/>
+      <origin rpy="0 0 0" xyz="-0.00036 -0.215353 -0.06"/>
       <geometry>
         <mesh filename="../meshes/wheel_right_link_1.stl" scale="0.001 0.001 0.001"/>
       </geometry>
@@ -1885,9 +1913,9 @@
       <material name="silver"/>
     </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="-0.00036 0.215147 -0.099"/>
+      <origin rpy="0 0 0" xyz="-0.00036 0.215147 -0.06"/>
       <geometry>
-        <mesh filename="../meshes/wheel_left_link_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh filename="../meshes/wheel__link_1.stl" scale="0.001 0.001 0.001"/>      
       </geometry>
     </collision>
   </link>
