@@ -1,28 +1,3 @@
-<robot name="035_power_drill">
-	<link name="_name">
-		<visual>
-			<origin xyz="0.30714691255337506 -0.24350845730285495 -0.2356763398968421" rpy="1.570796 0 0" />
-			<geometry>
-				<mesh filename="/home/erc/isaacgym/assets/urdf/ycb/ycb_urdfs-main/ycb_assets/035_power_drill/google_16k/textured.obj" scale="0.01 0.01 0.01" />
-			</geometry>
-			<material name="texture">
-				<color rgba="1.0 1.0 1.0 1.0" />
-			</material>
-		</visual>
-		<collision>
-			<geometry>
-				<mesh filename="/home/erc/isaacgym/assets/urdf/ycb/ycb_urdfs-main/ycb_assets/035_power_drill/google_16k/textured_vhacd.obj" scale="0.01 0.01 0.01" />
-			</geometry>
-		<origin xyz="0.30714691255337506 -0.24350845730285495 -0.2356763398968421" rpy="1.570796 0 0" /></collision>
-		<inertial>
-			<mass value="1.0" />
-			<inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01" />
-		</inertial>
-	</link>
-	<link name="handle_target" />
-	<joint name="drill_to_handle" type="fixed">
-		<parent link="_name" />
-		<child link="handle_target" />
-		<origin xyz="0.30714691255337506 -0.24350845730285495 -0.1856763398968421" rpy="0 0 0" />
-	</joint>
-</robot>
+version https://git-lfs.github.com/spec/v1
+oid sha256:ee224f7760e8ffc589f0498fc1519ce33276edbf43533da014609b6bd2659fed
+size 1125
