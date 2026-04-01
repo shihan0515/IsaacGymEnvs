@@ -1,0 +1,26 @@
+<robot name="035_power_drill">
+	<link name="base_link">
+		<visual>
+			<origin xyz="0 0 0" rpy="1.570796 0 0" />
+			<geometry>
+				<mesh filename="/home/erc/isaacgym/assets/urdf/ycb/ycb_urdfs-main/ycb_assets/035_power_drill/google_16k/textured.obj" scale="1 1 1" />
+			</geometry>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="1.570796 0 0" />
+			<geometry>
+				<mesh filename="/home/erc/isaacgym/assets/urdf/ycb/ycb_urdfs-main/ycb_assets/035_power_drill/google_16k/textured_vhacd.obj" scale="1 1 1" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="1.0" />
+			<inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001" />
+		</inertial>
+	</link>
+	<link name="handle_target" />
+	<joint name="drill_to_handle" type="fixed">
+		<parent link="base_link" />
+		<child link="handle_target" />
+		<origin xyz="0 0 0" rpy="0 0 0" />
+	</joint>
+</robot>

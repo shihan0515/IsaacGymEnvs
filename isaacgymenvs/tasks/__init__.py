@@ -31,6 +31,9 @@ from .anymal import Anymal
 from .anymal_terrain import AnymalTerrain
 from .ball_balance import BallBalance
 from .cartpole import Cartpole 
+from .centaur import Centaur
+from .Centaur2 import Centaur2
+from .centaurjmp import CentaurJMP
 from .factory.factory_task_gears import FactoryTaskGears
 from .factory.factory_task_insertion import FactoryTaskInsertion
 from .factory.factory_task_nut_bolt_pick import FactoryTaskNutBoltPick
@@ -38,6 +41,10 @@ from .factory.factory_task_nut_bolt_place import FactoryTaskNutBoltPlace
 from .factory.factory_task_nut_bolt_screw import FactoryTaskNutBoltScrew
 from .franka_cabinet import FrankaCabinet
 from .franka_cube_stack import FrankaCubeStack
+from .franka_example import FrankaExample
+from .franka_reach import FrankaReach
+from .franka_reach2 import FrankaReach2
+
 from .humanoid import Humanoid
 from .humanoid_amp import HumanoidAMP
 from .ingenuity import Ingenuity
@@ -46,23 +53,36 @@ from .shadow_hand import ShadowHand
 from .allegro_hand import AllegroHand
 from .dextreme.allegro_hand_dextreme import AllegroHandDextremeManualDR, AllegroHandDextremeADR
 from .trifinger import Trifinger
+from .OP3 import OP3
+from .diablo import diablo
+from .diablo2 import diablo2
+from .diablo3 import diablo3
+from .diablo22 import diablo22
+from .diablo_grasp import DiabloGrasp
+from .diablo_grasp_custom import DiabloGraspCustom
+from .diablo_graspcustom1 import DiabloGraspCustom1
+from .diablo_graspcustom2 import DiabloGraspCustom2
+from .diablo_graspcustom3 import DiabloGraspCustom3
 
 from .allegro_kuka.allegro_kuka_reorientation import AllegroKukaReorientation
 from .allegro_kuka.allegro_kuka_regrasping import AllegroKukaRegrasping
 from .allegro_kuka.allegro_kuka_throw import AllegroKukaThrow
 from .allegro_kuka.allegro_kuka_two_arms_regrasping import AllegroKukaTwoArmsRegrasping
 from .allegro_kuka.allegro_kuka_two_arms_reorientation import AllegroKukaTwoArmsReorientation
-
+from .allegro_kuka.Diablo_grasping import DiabloGrasping
 from .industreal.industreal_task_pegs_insert import IndustRealTaskPegsInsert
 from .industreal.industreal_task_gears_insert import IndustRealTaskGearsInsert
 
 
 def resolve_allegro_kuka(cfg, *args, **kwargs):
     subtask_name: str = cfg["env"]["subtask"]
+    # subtask_name: str = cfg["env"]["0"]
+
     subtask_map = dict(
         reorientation=AllegroKukaReorientation,
         throw=AllegroKukaThrow,
         regrasping=AllegroKukaRegrasping,
+        grasping=DiabloGrasping,
     )
 
     if subtask_name not in subtask_map:
@@ -96,6 +116,9 @@ isaacgym_task_map = {
     "AnymalTerrain": AnymalTerrain,
     "BallBalance": BallBalance,
     "Cartpole": Cartpole,
+    "Centaur": Centaur,
+    "Centaur2": Centaur2,
+    "CentaurJMP": CentaurJMP,
     "FactoryTaskGears": FactoryTaskGears,
     "FactoryTaskInsertion": FactoryTaskInsertion,
     "FactoryTaskNutBoltPick": FactoryTaskNutBoltPick,
@@ -105,10 +128,25 @@ isaacgym_task_map = {
     "IndustRealTaskGearsInsert": IndustRealTaskGearsInsert,
     "FrankaCabinet": FrankaCabinet,
     "FrankaCubeStack": FrankaCubeStack,
+    "FrankaExample" :FrankaExample,
+    "FrankaReach" : FrankaReach,
+    "FrankaReach2" : FrankaReach2,
     "Humanoid": Humanoid,
     "HumanoidAMP": HumanoidAMP,
     "Ingenuity": Ingenuity,
     "Quadcopter": Quadcopter,
     "ShadowHand": ShadowHand,
     "Trifinger": Trifinger,
+    "OP3": OP3,
+    "diablo": diablo,
+    "diablo2": diablo2,
+    "diablo22": diablo22,
+    "diablo3": diablo3,
+    "Diablo_grasping": DiabloGrasping,
+    "DiabloGrasp": DiabloGrasp,
+    "DiabloGraspCustom": DiabloGraspCustom,
+    "DiabloGraspCustom1": DiabloGraspCustom1,
+    "DiabloGraspCustom2": DiabloGraspCustom2,
+    "DiabloGraspCustom3": DiabloGraspCustom3,
+
 }

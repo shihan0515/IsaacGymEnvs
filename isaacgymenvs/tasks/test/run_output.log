@@ -1,0 +1,30 @@
+Importing module 'gym_38' (/home/erc/isaacgym/python/isaacgym/_bindings/linux-x86_64/gym_38.so)
+Setting GYM_USD_PLUG_INFO_PATH to /home/erc/isaacgym/python/isaacgym/_bindings/linux-x86_64/usd/plugInfo.json
+PyTorch version 2.4.1+cu121
+Device count 1
+/home/erc/isaacgym/python/isaacgym/_bindings/src/gymtorch
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+Using /home/erc/.cache/torch_extensions/py38_cu121 as PyTorch extensions root...
+Emitting ninja build file /home/erc/.cache/torch_extensions/py38_cu121/gymtorch/build.ninja...
+Building extension module gymtorch...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+ninja: no work to do.
+[W317 22:32:40.400227385 ir_emitter.cpp:4462] Warning: List consists of heterogeneous types, which means that it has been typed as containing Union[float, int]. To use any of the values in this List, it will be necessary to add an `assert isinstance` statement before first use to trigger type refinement.
+  File "/home/erc/isaacgym/python/IsaacGymEnvs/isaacgymenvs/tasks/centaur.py", line 492
+    base_ang_vel = quat_rotate_inverse(base_quat, root_states[:, 10:13])
+
+    default_gravity = torch.tensor([0, 0, -9.81], device=root_states.device)
+                                   ~~~~~~~~~~~~ <--- HERE
+    projected_gravity = quat_rotate(base_quat, default_gravity)
+    # print("base_ang_vel shape:", base_ang_vel.shape)
+ (function emitListLiteral)
+Loading extension module gymtorch...
+2026-03-17 22:32:40,397 - INFO - logger - logger initialized
+[Warning] [carb.gym.plugin] useGpuPipeline is set, forcing GPU PhysX
+Not connected to PVD
++++ Using GPU PhysX
+Physics Engine: PhysX
+Physics Device: cuda:0
+GPU Pipeline: enabled

@@ -76,6 +76,24 @@ def quat_apply(a, b):
     t = xyz.cross(b, dim=-1) * 2
     return (b + a[:, 3:] * t + xyz.cross(t, dim=-1)).view(shape)
 
+def axisangle2quat(vec, eps=1e-6):
+    """
+    Converts scaled axis-angle to quat.
+    Args:
+        vec (tensor): (..., 3) tensor where final dim is (ax,ay,az) axis-angle exponential coordinates
+        eps (float): Stability value below which small values will be mapped to 0
+    Returns:
+        tensor: (..., 4) tensor where final dim is (x,y,z,w) vec4 float quaternion
+    """
+    input_shape = vec.shape[:-1]
+    vec = vec.reshape(-1, 3)
+    angle = torch.norm(vec, dim=-1, keepdim=True)
+    quat = torch.zeros(torch.prod(torch.tensor(input_shape)), 4, device=vec.device)
+    quat[:, 3] = 1.0
+    idx = angle.reshape(-1) > eps
+    quat[idx, :] = torch.cat([vec[idx, :] * torch.sin(angle[idx, :] / 2.0) / angle[idx, :], torch.cos(angle[idx, :] / 2.0)], dim=-1)
+    quat = quat.reshape(list(input_shape) + [4, ])
+    return quat
 
 @torch.jit.script
 def quat_rotate(q, v):
@@ -566,6 +584,13 @@ def euler_xyz_to_exp_map(roll, pitch, yaw):
     exp_map = quat_to_exp_map(q)
     return exp_map
 
+@torch.jit.script
+def quat_to_euler(q):
+    """
+    补全缺失的函数，将四元数转换为欧拉角张量
+    """
+    roll, pitch, yaw = get_euler_xyz(q)
+    return torch.stack((roll, pitch, yaw), dim=-1)
 @torch.jit.script
 def exp_map_to_angle_axis(exp_map):
     min_theta = 1e-5
