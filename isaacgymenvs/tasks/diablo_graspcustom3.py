@@ -232,21 +232,15 @@ class DiabloGraspCustom3(VecTask):
         self.dof_lower_limits = to_torch(self.dof_lower_limits, device=self.device)
         self.dof_upper_limits = to_torch(self.dof_upper_limits, device=self.device)
 
-        self.table_stand_height = 0.01
-        self.table_stand_dims = gymapi.Vec3(0.3, 0.5, self.table_stand_height)
+        table_stand_height = 0.05
+        table_stand_dims = gymapi.Vec3(0.3, 0.5, 0.01)
         table_asset_options = gymapi.AssetOptions()
         table_asset_options.fix_base_link = True
-        table_stand_asset = self.gym.create_box(self.sim, self.table_stand_dims.x, self.table_stand_dims.y, self.table_stand_dims.z, table_asset_options)
+        table_stand_asset = self.gym.create_box(self.sim, table_stand_dims.x, table_stand_dims.y, table_stand_dims.z, table_asset_options)
         self.num_table_bodies = self.gym.get_asset_rigid_body_count(table_stand_asset)
         self.num_table_shapes = self.gym.get_asset_rigid_shape_count(table_stand_asset)
-        
-        # 初始化桌子表面、中心位置與旋轉張量
-        self.table_surface_pos_tensor = torch.zeros((self.num_envs, 3), device=self.device)
-        self.table_pos_tensor = torch.zeros((self.num_envs, 3), device=self.device)
-        self.table_rot_tensor = torch.zeros((self.num_envs, 4), device=self.device)
-        self.table_rot_tensor[:, 3] = 1.0 # 預設四元數 [0,0,0,1]
 
-        mug_asset_file = "/home/erc/isaacgym/assets/urdf/ycb/ycb_urdfs-main/ycb_assets/035_power_drill.urdf"
+        mug_asset_file = "urdf/ycb/ycb_urdfs-main/ycb_assets/035_power_drill.urdf"  
         mug_asset_options = gymapi.AssetOptions()
         mug_asset_options.fix_base_link = False
         mug_asset_options.use_mesh_materials = True
@@ -256,7 +250,7 @@ class DiabloGraspCustom3(VecTask):
         mug_asset_options.vhacd_enabled = True
         mug_asset_options.vhacd_params = gymapi.VhacdParams()
         mug_asset_options.vhacd_params.resolution = 1000
-        self.object_asset = self.gym.load_asset(self.sim, "", mug_asset_file, mug_asset_options)
+        self.object_asset = self.gym.load_asset(self.sim, asset_root, mug_asset_file, mug_asset_options)
         self.num_object_bodies = self.gym.get_asset_rigid_body_count(self.object_asset)
         self.num_object_shapes = self.gym.get_asset_rigid_shape_count(self.object_asset)
         self._mug_height = 0.1 
@@ -268,11 +262,11 @@ class DiabloGraspCustom3(VecTask):
         diablo_start_pose.p = gymapi.Vec3(0.0, 0.0, 0.25) 
         diablo_start_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
 
-        table_stand_pos = gymapi.Vec3(0.25, 0.0, 0.32) # 調低桌子高度
+        table_stand_pos = gymapi.Vec3(0.25, 0.0, 0.35) # 調低桌子高度
         table_stand_pose = gymapi.Transform()
         table_stand_pose.p = table_stand_pos
         table_stand_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
-        self.table_surface_pos = table_stand_pos + gymapi.Vec3(0, 0, self.table_stand_height / 2)
+        self.table_surface_pos = table_stand_pos + gymapi.Vec3(0, 0, table_stand_height / 2)
 
         object_start_pose = gymapi.Transform()
         object_start_pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
@@ -400,12 +394,9 @@ class DiabloGraspCustom3(VecTask):
         self.root_state[self.target_actor_ids, :3] = self.target_marker_pos_tensor
         self.root_state[self.zone_actor_ids, :3] = self.zone_marker_pos_tensor
         self.root_state[self.platform_actor_ids, :3] = self.platform_pos_tensor
-        self.root_state[self.table_actor_ids, :3] = self.table_pos_tensor
-        self.root_state[self.table_actor_ids, 3:7] = self.table_rot_tensor
-        self.root_state[self.zone_actor_ids, 3:7] = self.table_rot_tensor # 同步藍色區域旋轉
         
         # 同步這些固定 Actor 的位置到模擬器
-        all_fixed_indices = torch.cat([self.zone_actor_ids, self.target_actor_ids, self.platform_actor_ids, self.table_actor_ids])
+        all_fixed_indices = torch.cat([self.zone_actor_ids, self.target_actor_ids, self.platform_actor_ids])
         self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self.root_state),
                                                      gymtorch.unwrap_tensor(all_fixed_indices), len(all_fixed_indices))
 
@@ -496,7 +487,7 @@ class DiabloGraspCustom3(VecTask):
         h_target = 0.23 + torch.rand(num_resets, device=self.device) * 0.12 # Range [0.23, 0.35]
         # Using more obvious pitch variation
         p_target = (torch.rand(num_resets, device=self.device) - 0.5) * 0.4 # Range [-0.2, 0.2]
-        y_target = (torch.rand(num_resets, device=self.device) - 0.5) * 0.2 # 減少系統旋轉範圍 [-0.1, 0.1] rad
+        y_target = (torch.rand(num_resets, device=self.device) - 0.5) * 0.4 # Reduced random yaw range [-0.2, 0.2] rad
 
         # 3. Use IK to find the required leg configuration
         # Calculate required virtual leg length L0
@@ -548,34 +539,12 @@ class DiabloGraspCustom3(VecTask):
         self.root_state[self.diablo_actor_ids[env_ids], 1] = base_y_offset
         self.root_state[self.diablo_actor_ids[env_ids], 2] = h_target
         
-        # --- 桌子高度與旋轉同步隨機化 (Thesis Generalization Feature) ---
-        # 讓桌子旋轉傾向於跟隨機器人旋轉 (y_target)，避免反向旋轉過大
-        # 基準設為 y_target，再疊加 +/- 0.05 rad (~2.8度) 的微小隨機偏差
-        table_yaw_noise = (torch.rand(num_resets, device=self.device) - 0.5) * 0.1
-        table_yaw = y_target + table_yaw_noise
-        table_quat = quat_from_euler_xyz(torch.zeros_like(table_yaw), torch.zeros_like(table_yaw), table_yaw)
-        self.table_rot_tensor[env_ids] = table_quat
-        self.root_state[self.table_actor_ids[env_ids], 3:7] = table_quat
-
-        # --- 非對稱高度隨機化：機器人升 1cm，桌子升 0.5cm ---
-        # 確保最難情況與 custom2 對齊 (Hr=0.23 時 Ht=0.345，差距 11.5cm)
-        # 公式：Ht = 0.5 * Hr + 0.23 (偏移量從 0.26 降至 0.23，下降 3cm)
-        self.table_surface_pos_tensor[env_ids, 2] = 0.5 * h_target + 0.23
-        # 儲存桌子 Actor 的中心座標 (Actor Root Position)
-        self.table_pos_tensor[env_ids, 0] = 0.25
-        self.table_pos_tensor[env_ids, 1] = 0.0
-        self.table_pos_tensor[env_ids, 2] = self.table_surface_pos_tensor[env_ids, 2] - self.table_stand_height / 2
-        self.root_state[self.table_actor_ids[env_ids], :3] = self.table_pos_tensor[env_ids]
-        
-        # 輔助函式：將本地偏移座標繞著桌子中心旋轉
-        def rotate_offsets(x_off, y_off, quat):
-            offsets = torch.stack([x_off, y_off, torch.zeros_like(x_off)], dim=-1)
-            return quat_apply(quat, offsets)
-
         combined_quat = quat_from_euler_xyz(torch.zeros_like(p_target), p_target, y_target)
         self.root_state[self.diablo_actor_ids[env_ids], 3:7] = combined_quat
         self.root_state[self.diablo_actor_ids[env_ids], 7:13] = 0.0
 
+
+        
         diablo_indices = self.diablo_actor_ids[env_ids].to(torch.int32)
         self.gym.set_dof_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self.dof_state),
                                               gymtorch.unwrap_tensor(diablo_indices), len(diablo_indices))
@@ -583,40 +552,26 @@ class DiabloGraspCustom3(VecTask):
         object_indices = self.object_actor_ids[env_ids].to(torch.int32)
         sample_mug_pos = torch.zeros(num_resets, 3, device=self.device)
         
-        # 更新物體重置的基準高度
-        self.initial_object_z[env_ids] = self.table_surface_pos_tensor[env_ids, 2] + self._mug_height / 2 + 0.002
-
-        # 物體座標隨機化 (不隨桌子旋轉，保持相對於機器人的固定空間範圍)
         x_noise = (torch.rand(num_resets, device=self.device) - 0.5) * 2.0
         sample_mug_pos[:, 0] = 0.20 + x_noise * 0.075
-        # 修正 Y：將中心向右移 (更負)，並收緊範圍確保不掉出桌外 (邊界約 -0.23，桌面邊緣 -0.25)
-        sample_mug_pos[:, 1] = -0.18 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.10
+        sample_mug_pos[:, 1] = self.table_surface_pos.y - (0.075 + torch.rand(num_resets, device=self.device) * 0.15)
         sample_mug_pos[:, 2] = self.initial_object_z[env_ids]
         self.root_state[object_indices, :3] = sample_mug_pos
 
-        # 物體初始旋轉：負 X 軸 (-X) 與世界座標 X 軸對齊 (基準旋轉 180 度)
         initial_mug_rot = torch.tensor([0, 0, 0, 1], dtype=torch.float32, device=self.device).unsqueeze(0).repeat(num_resets, 1)
         aa_rot = torch.zeros(num_resets, 3, device=self.device)
-        # 基準角度設為 pi (180度)，僅疊加 start_rotation_noise 範圍內的隨機擾動
         aa_rot[:, 2] = np.pi + 2.0 * self.start_rotation_noise * (torch.rand(num_resets, device=self.device) - 0.5)
         self.root_state[object_indices, 3:7] = quat_mul(axisangle2quat(aa_rot), initial_mug_rot)
         self.root_state[object_indices, 7:13] = 0.0
         
-        # 旋轉標記物座標
-        target_rotated_offset = rotate_offsets(torch.zeros_like(table_yaw), torch.full_like(table_yaw, -0.10), table_quat)
-        self.target_marker_pos_tensor[env_ids, 0] = 0.25 + target_rotated_offset[:, 0]
-        self.target_marker_pos_tensor[env_ids, 1] = 0.0 + target_rotated_offset[:, 1]
+        # 強制設定標記物坐標，確保不掉在地上
+        self.target_marker_pos_tensor[env_ids, 0] = 0.25
+        self.target_marker_pos_tensor[env_ids, 1] = self.table_surface_pos.y - 0.10
         self.target_marker_pos_tensor[env_ids, 2] = self.initial_object_z[env_ids] + 0.15
         
-        zone_rotated_offset = rotate_offsets(torch.full_like(table_yaw, -0.05), torch.full_like(table_yaw, -0.15), table_quat)
-        self.zone_marker_pos_tensor[env_ids, 0] = 0.25 + zone_rotated_offset[:, 0]
-        self.zone_marker_pos_tensor[env_ids, 1] = 0.0 + zone_rotated_offset[:, 1]
-        self.zone_marker_pos_tensor[env_ids, 2] = self.table_surface_pos_tensor[env_ids, 2] + 0.0001
-        
-        # 將更新後的位置同步到 root_state 緩存
-        self.root_state[self.target_actor_ids[env_ids], :3] = self.target_marker_pos_tensor[env_ids]
-        self.root_state[self.zone_actor_ids[env_ids], :3] = self.zone_marker_pos_tensor[env_ids]
-        self.root_state[self.zone_actor_ids[env_ids], 3:7] = table_quat # 讓藍色區域跟著桌子轉
+        self.zone_marker_pos_tensor[env_ids, 0] = 0.20
+        self.zone_marker_pos_tensor[env_ids, 1] = self.table_surface_pos.y - 0.15
+        self.zone_marker_pos_tensor[env_ids, 2] = 0.356
         
         # --- 初始隱藏漂浮小平台 (Z = -1.0) ---
         platform_indices = self.platform_actor_ids[env_ids].to(torch.int32)
@@ -630,7 +585,6 @@ class DiabloGraspCustom3(VecTask):
 
         all_indices = torch.cat([
             self.diablo_actor_ids[env_ids], 
-            self.table_actor_ids[env_ids],
             self.object_actor_ids[env_ids], 
             self.target_actor_ids[env_ids], 
             self.zone_actor_ids[env_ids],
@@ -692,11 +646,11 @@ class DiabloGraspCustom3(VecTask):
         # 這裡不強求 is_grasping，只要高度到了就視為觸發出現
         should_appear = (object_heights > 0.02)
         
-        # 將滿足條件的環境平台 Z 軸設為相對目標高度 (該環境桌面 + 0.03m)
-        target_z = self.table_surface_pos_tensor[:, 2] + 0.03
+        # 將滿足條件的環境平台 Z 軸設為固定目標高度 (桌面 + 0.03m)
+        target_z = self.table_surface_pos.z + 0.03
         self.platform_pos_tensor[:, 2] = torch.where(
             should_appear, 
-            target_z, 
+            torch.ones_like(self.platform_pos_tensor[:, 2]) * target_z, 
             self.platform_pos_tensor[:, 2]
         )
 
