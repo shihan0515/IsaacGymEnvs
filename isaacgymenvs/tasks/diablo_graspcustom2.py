@@ -239,7 +239,7 @@ class DiabloGraspCustom2(VecTask):
         self.num_table_bodies = self.gym.get_asset_rigid_body_count(table_stand_asset)
         self.num_table_shapes = self.gym.get_asset_rigid_shape_count(table_stand_asset)
 
-        mug_asset_file = "/home/erc/isaacgym/assets/urdf/ycb/025_mug/025_mug.urdf"
+        mug_asset_file = "urdf/ycb/025_mug/025_mug.urdf"
         mug_asset_options = gymapi.AssetOptions()
         mug_asset_options.fix_base_link = False
         mug_asset_options.use_mesh_materials = True
@@ -249,7 +249,7 @@ class DiabloGraspCustom2(VecTask):
         mug_asset_options.vhacd_enabled = True
         mug_asset_options.vhacd_params = gymapi.VhacdParams()
         mug_asset_options.vhacd_params.resolution = 1000
-        self.object_asset = self.gym.load_asset(self.sim, "", mug_asset_file, mug_asset_options)
+        self.object_asset = self.gym.load_asset(self.sim, asset_root, mug_asset_file, mug_asset_options)
         self.num_object_bodies = self.gym.get_asset_rigid_body_count(self.object_asset)
         self.num_object_shapes = self.gym.get_asset_rigid_shape_count(self.object_asset)
         self._mug_height = 0.1 
