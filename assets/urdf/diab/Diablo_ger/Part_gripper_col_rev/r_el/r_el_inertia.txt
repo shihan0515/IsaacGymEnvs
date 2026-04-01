@@ -1,0 +1,32 @@
+Mass properties of r_el
+     Configuration: Default
+     Coordinate system: Coordinate System2
+
+Mass (user-overridden) = 0.026000 kilograms
+
+Volume = 0.000019 cubic meters
+
+Surface area = 0.020515 square meters
+
+Center of mass: ( meters )
+	X = 0.000018
+	Y = 0.019027
+	Z = -0.053118
+
+Principal axes of inertia and principal moments of inertia: ( kilograms * square meters )
+Taken at the center of mass.
+	 Ix = (-0.001121, -0.001772,  0.999998)   	Px = 0.000004
+	 Iy = (-0.000064, -0.999998, -0.001772)   	Py = 0.000018
+	 Iz = ( 0.999999, -0.000066,  0.001121)   	Pz = 0.000020
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 0.000020	Lxy = 0.000000	Lxz = 0.000000
+	Lyx = 0.000000	Lyy = 0.000018	Lyz = 0.000000
+	Lzx = 0.000000	Lzy = 0.000000	Lzz = 0.000004
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the output coordinate system.
+	Ixx = 0.000103	Ixy = 0.000000	Ixz = 0.000000
+	Iyx = 0.000000	Iyy = 0.000091	Iyz = -0.000026
+	Izx = 0.000000	Izy = -0.000026	Izz = 0.000014

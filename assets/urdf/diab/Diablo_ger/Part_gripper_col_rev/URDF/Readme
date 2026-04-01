@@ -1,0 +1,31 @@
+URDF File
+
+diablo_new_2025_full_col.urdf = Full collision mode on the upperbody + lowerbody diablo
+diablo_new_2025_full_gripper.urdf = Collision mode on the upperbody with visual on the hand + lowerbody diablo
+upperbody_gripper.urdf = Upper body only in collision mode with visual on the hand
+
+DAMPING/STIFFNESS VALUE
+
+head_pan 0.00643/16.08461
+head_tilt 0.00046/1.1578
+
+l_sho_pitch 0.3/15
+l_sho_roll 0.4/20
+l_el 0.1/13.82181
+l_wrist 0.00182/4.54741
+left_j4 25.0/120.0
+left_j1 18.0/80.0
+left_j2 0.8/2.0
+left_j3 65.5503/0.0
+
+
+
+
+
+  DOF 0: left_fake_hip_joint 25.0/120.0
+  DOF 1: left_fake_knee_joint 0.8/2.0
+  DOF 2: left_wheel_joint 65.5503/0.0
+  DOF 3: right_fake_hip_joint 25.0/120.0
+  DOF 4: right_fake_knee_joint 0.8/2.0
+  DOF 5: right_wheel_joint 65.5503/0.0
+

@@ -1,0 +1,32 @@
+Mass properties of l_wrist
+     Configuration: Default
+     Coordinate system: Coordinate System1
+
+Mass (user-overridden) = 0.216160 kilograms
+
+Volume = 0.000243 cubic meters
+
+Surface area = 0.027529 square meters
+
+Center of mass: ( meters )
+	X = -0.000435
+	Y = 0.003217
+	Z = -0.043779
+
+Principal axes of inertia and principal moments of inertia: ( kilograms * square meters )
+Taken at the center of mass.
+	 Ix = (-0.001824,  0.166226, -0.986086)   	Px = 0.000101
+	 Iy = (-0.999944, -0.010575,  0.000067)   	Py = 0.000183
+	 Iz = (-0.010417,  0.986031,  0.166236)   	Pz = 0.000194
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 0.000183	Lxy = 0.000000	Lxz = 0.000000
+	Lyx = 0.000000	Lyy = 0.000191	Lyz = -0.000015
+	Lzx = 0.000000	Lzy = -0.000015	Lzz = 0.000104
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the output coordinate system.
+	Ixx = 0.000600	Ixy = 0.000000	Ixz = 0.000000
+	Iyx = 0.000000	Iyy = 0.000606	Iyz = -0.000046
+	Izx = 0.000000	Izy = -0.000046	Izz = 0.000106

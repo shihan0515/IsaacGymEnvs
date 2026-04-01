@@ -1,0 +1,32 @@
+Mass properties of l_hand
+     Configuration: Default
+     Coordinate system: Coordinate System1
+
+Mass (user-overridden) = 0.250000 kilograms
+
+Volume = 0.000243 cubic meters
+
+Surface area = 0.027529 square meters
+
+Center of mass: ( meters )
+	X = -0.000035
+	Y = 0.003217
+	Z = -0.043779
+
+Principal axes of inertia and principal moments of inertia: ( kilograms * square meters )
+Taken at the center of mass.
+	 Ix = (-0.001824,  0.166226, -0.986086)   	Px = 0.000117
+	 Iy = (-0.999944, -0.010575,  0.000067)   	Py = 0.000212
+	 Iz = (-0.010417,  0.986031,  0.166236)   	Pz = 0.000224
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 0.000212	Lxy = 0.000000	Lxz = 0.000000
+	Lyx = 0.000000	Lyy = 0.000221	Lyz = -0.000018
+	Lzx = 0.000000	Lzy = -0.000018	Lzz = 0.000120
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the output coordinate system.
+	Ixx = 0.000694	Ixy = 0.000000	Ixz = 0.000001
+	Iyx = 0.000000	Iyy = 0.000700	Iyz = -0.000053
+	Izx = 0.000001	Izy = -0.000053	Izz = 0.000122

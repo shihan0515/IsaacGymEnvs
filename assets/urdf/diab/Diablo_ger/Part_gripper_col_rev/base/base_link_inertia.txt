@@ -1,0 +1,34 @@
+Mass properties of base_link
+     Configuration: Default
+     Coordinate system: Coordinate System1
+
+Density = 2731.612689 kilograms per cubic meter
+
+Mass (user-overridden) = 1.254800 kilograms
+
+Volume = 0.000459 cubic meters
+
+Surface area = 0.367432 square meters
+
+Center of mass: ( meters )
+	X = -0.000202
+	Y = 0.000000
+	Z = 0.165441
+
+Principal axes of inertia and principal moments of inertia: ( kilograms * square meters )
+Taken at the center of mass.
+	 Ix = (-0.000726,  0.000000,  1.000000)   	Px = 0.003778
+	 Iy = ( 0.005471,  0.999985,  0.000005)   	Py = 0.014554
+	 Iz = (-0.999985,  0.005471, -0.000726)   	Pz = 0.016818
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 0.016818	Lxy = 0.000012	Lxz = -0.000009
+	Lyx = 0.000012	Lyy = 0.014554	Lyz = 0.000000
+	Lzx = -0.000009	Lzy = 0.000000	Lzz = 0.003778
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the output coordinate system.
+	Ixx = 0.051163	Ixy = 0.000012	Ixz = -0.000051
+	Iyx = 0.000012	Iyy = 0.048899	Iyz = 0.000000
+	Izx = -0.000051	Izy = 0.000000	Izz = 0.003778
