@@ -1,0 +1,32 @@
+Mass properties of finger_tip
+     Configuration: Default
+     Coordinate system: Coordinate System1
+
+Mass (user-overridden) = 0.00372000 kilograms
+
+Volume = 0.00000551 cubic meters
+
+Surface area = 0.00195528 square meters
+
+Center of mass: ( meters )
+	X = 0.00007447
+	Y = 0.00115239
+	Z = -0.01200000
+
+Principal axes of inertia and principal moments of inertia: ( kilograms * square meters )
+Taken at the center of mass.
+	 Ix = ( 0.00000000,  0.00000000, -1.00000000)   	Px = 0.00000014
+	 Iy = (-0.99679262,  0.08002800,  0.00000000)   	Py = 0.00000026
+	 Iz = ( 0.08002800,  0.99679262,  0.00000000)   	Pz = 0.00000030
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 0.00000026	Lxy = 0.00000000	Lxz = 0.00000000
+	Lyx = 0.00000000	Lyy = 0.00000030	Lyz = 0.00000000
+	Lzx = 0.00000000	Lzy = 0.00000000	Lzz = 0.00000014
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the output coordinate system.
+	Ixx = 0.00000080	Ixy = 0.00000000	Ixz = 0.00000000
+	Iyx = 0.00000000	Iyy = 0.00000083	Iyz = -0.00000005
+	Izx = 0.00000000	Izy = -0.00000005	Izz = 0.00000014

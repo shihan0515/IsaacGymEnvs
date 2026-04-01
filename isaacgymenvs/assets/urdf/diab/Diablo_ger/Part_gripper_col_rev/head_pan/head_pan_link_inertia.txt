@@ -1,0 +1,32 @@
+Mass properties of head_pan_link
+     Configuration: Default
+     Coordinate system: Coordinate System1
+
+Mass (user-overridden) = 0.098200 kilograms
+
+Volume = 0.000055 cubic meters
+
+Surface area = 0.014914 square meters
+
+Center of mass: ( meters )
+	X = 0.012229
+	Y = -0.000618
+	Z = 0.019874
+
+Principal axes of inertia and principal moments of inertia: ( kilograms * square meters )
+Taken at the center of mass.
+	 Ix = (-0.998540,  0.006724, -0.053601)   	Px = 0.000020
+	 Iy = (-0.034381, -0.844432,  0.534558)   	Py = 0.000027
+	 Iz = (-0.041668,  0.535620,  0.843430)   	Pz = 0.000028
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 0.000020	Lxy = 0.000000	Lxz = 0.000000
+	Lyx = 0.000000	Lyy = 0.000027	Lyz = -0.000001
+	Lzx = 0.000000	Lzy = -0.000001	Lzz = 0.000028
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the output coordinate system.
+	Ixx = 0.000059	Ixy = -0.000001	Ixz = 0.000024
+	Iyx = -0.000001	Iyy = 0.000080	Iyz = -0.000002
+	Izx = 0.000024	Izy = -0.000002	Izz = 0.000042

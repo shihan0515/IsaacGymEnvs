@@ -1,0 +1,32 @@
+Mass properties of l_sho_roll
+     Configuration: Default
+     Coordinate system: Coordinate System1
+
+Mass (user-overridden) = 0.115000 kilograms
+
+Volume = 0.000069 cubic meters
+
+Surface area = 0.038866 square meters
+
+Center of mass: ( meters )
+	X = -0.018978
+	Y = 0.000432
+	Z = -0.112916
+
+Principal axes of inertia and principal moments of inertia: ( kilograms * square meters )
+Taken at the center of mass.
+	 Ix = ( 0.000363,  0.007092, -0.999975)   	Px = 0.000020
+	 Iy = ( 0.999998, -0.002139,  0.000348)   	Py = 0.000200
+	 Iz = (-0.002137, -0.999973, -0.007093)   	Pz = 0.000201
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 0.000200	Lxy = 0.000000	Lxz = 0.000000
+	Lyx = 0.000000	Lyy = 0.000201	Lyz = -0.000001
+	Lzx = 0.000000	Lzy = -0.000001	Lzz = 0.000020
+
+Moments of inertia: ( kilograms * square meters )
+Taken at the output coordinate system.
+	Ixx = 0.001667	Ixy = -0.000001	Ixz = 0.000246
+	Iyx = -0.000001	Iyy = 0.001709	Iyz = -0.000007
+	Izx = 0.000246	Izy = -0.000007	Izz = 0.000061
