@@ -63,6 +63,7 @@ from .diablo_grasp_custom import DiabloGraspCustom
 from .diablo_graspcustom1 import DiabloGraspCustom1
 from .diablo_graspcustom2 import DiabloGraspCustom2
 from .diablo_graspcustom3 import DiabloGraspCustom3
+from .diablo_graspcustom4 import DiabloGraspCustom4
 
 from .allegro_kuka.allegro_kuka_reorientation import AllegroKukaReorientation
 from .allegro_kuka.allegro_kuka_regrasping import AllegroKukaRegrasping
@@ -148,5 +149,6 @@ isaacgym_task_map = {
     "DiabloGraspCustom1": DiabloGraspCustom1,
     "DiabloGraspCustom2": DiabloGraspCustom2,
     "DiabloGraspCustom3": DiabloGraspCustom3,
+    "DiabloGraspCustom4": DiabloGraspCustom4,
 
 }
