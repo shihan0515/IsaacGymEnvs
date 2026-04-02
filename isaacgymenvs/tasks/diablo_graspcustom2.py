@@ -693,10 +693,11 @@ def compute_diablo_reward(
     dot2 = torch.bmm(axis3.view(num_envs, 1, 3), axis4.view(num_envs, 3, 1)).squeeze(-1).squeeze(-1)
     rot_reward = 0.5 * (torch.sign(dot1) * dot1 ** 2 + torch.sign(dot2) * dot2 ** 2)
 
-    # --- Stage 2: Grasping (抓取意圖) ---
+    # --- Stage 2: Grasping (抓取) ---
     gripper_close_action = (actions[:, 13] >= 0.0)
     is_oriented_for_grasp = (dot1 < -0.7) & (dot2 > 0.7)
     is_close_to_grasp = (d < 0.025) & is_oriented_for_grasp 
+    # 提高抓取意圖獎勵
     grasp_attempt_reward = torch.where(is_close_to_grasp & gripper_close_action, torch.ones_like(rot_reward) * 5.0, torch.zeros_like(rot_reward))
 
     # --- Stage 3: Lifting & Transport (抬升與搬運) ---
@@ -704,53 +705,50 @@ def compute_diablo_reward(
     is_grasping = is_close_to_grasp & gripper_close_action
     is_lifted = (object_height > 0.03)
     dist_xy_to_platform = torch.norm(object_pos[:, :2] - platform_pos[:, :2], p=2, dim=-1)
-    is_over_platform = (dist_xy_to_platform < 0.05)
+    # 縮小對準範圍：要求更精確的中心對準 (2.5cm)
+    is_over_platform = (dist_xy_to_platform < 0.025) 
     
     platform_surface_z = platform_pos[:, 2] + 0.005
     object_bottom_z = object_pos[:, 2] - 0.05
     dist_z_to_platform = torch.abs(object_bottom_z - platform_surface_z)
-    is_on_platform = is_over_platform & (dist_z_to_platform < 0.02)
+    # 同時要求更高的 Z 軸精度 (1.5cm)
+    is_on_platform = is_over_platform & (dist_z_to_platform < 0.015)
 
     # --- Orientation (基礎計算) ---
-    # 垂直對齊 (Z-axis Up)
     mug_up_vec = torch.tensor([0.0, 0.0, 1.0], device=eef_pos.device).repeat(num_envs, 1)
     world_mug_up = tf_vector(object_rot, mug_up_vec)
     world_up = torch.tensor([0.0, 0.0, 1.0], device=eef_pos.device).repeat(num_envs, 1)
     mug_dot_up = torch.bmm(world_mug_up.view(num_envs, 1, 3), world_up.view(num_envs, 3, 1)).squeeze(-1).squeeze(-1)
-
-    # 水平對齊 (Mug -X axis parallel to World X axis)
-    mug_minus_x_vec = torch.tensor([-1.0, 0.0, 0.0], device=eef_pos.device).repeat(num_envs, 1)
-    world_mug_minus_x = tf_vector(object_rot, mug_minus_x_vec)
-    world_x = torch.tensor([1.0, 0.0, 0.0], device=eef_pos.device).repeat(num_envs, 1)
-    mug_dot_x = torch.bmm(world_mug_minus_x.view(num_envs, 1, 3), world_x.view(num_envs, 3, 1)).squeeze(-1).squeeze(-1)
+    
+    # 強制垂直判定：只有當 mug_dot_up > 0.85 (約 30度以內) 才算「基本垂直」
+    is_upright = (mug_dot_up > 0.85)
 
     # --- 階段鎖定 (Stage Latching) 邏輯 ---
     # 1. 一旦舉起，靠近獎勵鎖定為常數
     dist_reward = torch.where(is_lifted, torch.ones_like(dist_reward) * 2.0, dist_reward)
     rot_reward = torch.where(is_lifted, torch.ones_like(rot_reward) * 0.5, rot_reward)
 
-    # 2. 抬升獎勵：一旦到達平台上方，鎖定抬升分為最大值
+    # 2. 抬升獎勵：加上「必須垂直」的要求，否則不予鎖定
     target_lift = 0.06
     lift_reward = torch.where(is_grasping, 100.0 * torch.clamp(object_height, min=0.0, max=target_lift), torch.zeros_like(rot_reward))
-    lift_reward = torch.where(is_over_platform, torch.ones_like(lift_reward) * 100.0 * target_lift, lift_reward)
+    lift_reward = torch.where(is_over_platform & is_upright, torch.ones_like(lift_reward) * 100.0 * target_lift, lift_reward)
 
-    # 3. 搬運獎勵：一旦到達目標高度 (is_on_platform)，鎖定搬運分為最大值
+    # 3. 搬運獎勵：如果物品不垂直，搬運獎勵大幅縮減，防止刷分
     transport_reward = torch.where(is_grasping & is_lifted, 180.0 * torch.exp(-5.0 * dist_xy_to_platform), torch.zeros_like(rot_reward))
-    transport_reward = torch.where(is_on_platform, torch.ones_like(transport_reward) * 180.0, transport_reward)
+    transport_reward = torch.where(~is_upright, transport_reward * 0.1, transport_reward) # 懲罰橫躺搬運
+    transport_reward = torch.where(is_on_platform & is_upright, torch.ones_like(transport_reward) * 180.0, transport_reward)
 
-    # 4. 姿態獎勵鎖定：融合垂直與水平對齊要求
-    # 要求兩者皆為 1.0 (取平均後加次方)
-    combined_ori = (torch.clamp(mug_dot_up, min=0.0) + torch.clamp(mug_dot_x, min=0.0)) * 0.5
-    current_ori_reward = torch.pow(combined_ori, 6) * 60.0
-    orientation_reward = torch.where(is_on_platform, torch.ones_like(rot_reward) * 60.0, 
+    # 4. 姿態獎勵：權重提高，並加入「如果倒下就歸零」的硬限制
+    current_ori_reward = torch.pow(torch.clamp(mug_dot_up, min=0.0), 8) * 100.0 # 提高次方與權重
+    orientation_reward = torch.where(is_on_platform & is_upright, torch.ones_like(rot_reward) * 100.0, 
                                      torch.where(object_height > 0.01, current_ori_reward, torch.zeros_like(rot_reward)))
 
-    # 5. 放置獎勵鎖定：一旦觸地，鎖定放置分
-    current_place_reward = 120.0 / (1.0 + dist_z_to_platform * 20.0)
-    placement_reward = torch.where(is_on_platform, torch.ones_like(rot_reward) * 120.0,
-                                   torch.where(is_grasping & is_over_platform, current_place_reward, torch.zeros_like(rot_reward)))
+    # 5. 放置獎勵：加上「垂直」門檻，否則無法進入鎖定狀態
+    current_place_reward = 200.0 / (1.0 + dist_z_to_platform * 25.0 + dist_xy_to_platform * 40.0)
+    placement_reward = torch.where(is_on_platform & is_upright, torch.ones_like(rot_reward) * 200.0,
+                                   torch.where(is_grasping & (dist_xy_to_platform < 0.06), current_place_reward, torch.zeros_like(rot_reward)))
 
-    # 高度懲罰：防止無限上升
+    # 高度懲罰：僅在非成功狀態下生效
     lift_penalty = torch.where(is_grasping & (object_height > target_lift + 0.04), 500.0 * (object_height - (target_lift + 0.04)), torch.zeros_like(rot_reward))
 
     # 時間懲罰
@@ -760,16 +758,20 @@ def compute_diablo_reward(
     gripper_open = (actions[:, 13] < -0.1) 
     eef_dist_to_obj = torch.norm(eef_pos - object_pos, p=2, dim=-1)
     
-    # 引爆放手動機
+    # 1. 讓放手動作本身具有極高價值
     is_releasing = is_on_platform & gripper_open
-    release_reward = torch.where(is_releasing, torch.ones_like(rot_reward) * 300.0, torch.zeros_like(rot_reward))
+    release_reward = torch.where(is_releasing, torch.ones_like(rot_reward) * 500.0, torch.zeros_like(rot_reward))
 
-    # 新增撤離獎勵：建立導向成功的梯度
-    retreat_reward = torch.where(is_releasing, torch.clamp(eef_dist_to_obj, max=0.15) * 1500.0, torch.zeros_like(rot_reward))
+    # 2. 強化撤離獎勵：改為非線性梯度，建立爆炸性的「排斥場」
+    # 距離越遠分越高，且使用平方項讓「遠離」的動作獲得急劇增加的分數
+    # 當距離達到 15cm (0.15) 時，此項加分約為 2250 分 (100000 * 0.15^2)
+    current_retreat_dist = torch.clamp(eef_dist_to_obj, max=0.15)
+    retreat_reward = torch.where(is_releasing, torch.pow(current_retreat_dist, 2) * 100000.0, torch.zeros_like(rot_reward))
 
-    # 最終成功大獎
+    # 3. 最終成功大獎：提高到 2500 分，誘使 Agent 衝刺過線
+    # 要求手部明確撤離物品 (12cm 以上)
     is_success = is_on_platform & (gripper_open & (eef_dist_to_obj > 0.12))
-    success_reward = torch.where(is_success, torch.ones_like(rot_reward) * 1000.0, torch.zeros_like(rot_reward))
+    success_reward = torch.where(is_success, torch.ones_like(rot_reward) * 2500.0, torch.zeros_like(rot_reward))
     
     action_penalty = torch.sum(actions ** 2, dim=-1)
 

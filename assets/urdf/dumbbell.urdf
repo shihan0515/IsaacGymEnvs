@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<robot name="dumbbell">
+  <link name="handle">
+    <visual>
+      <geometry>
+        <cylinder length="0.15" radius="0.015"/>
+      </geometry>
+      <material name="grey"><color rgba="0.5 0.5 0.5 1"/></material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.15" radius="0.015"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <link name="left_weight">
+    <visual>
+      <origin xyz="0 0 0.09" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.04" radius="0.04"/>
+      </geometry>
+      <material name="black"><color rgba="0.1 0.1 0.1 1"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.09" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.04" radius="0.04"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <link name="right_weight">
+    <visual>
+      <origin xyz="0 0 -0.09" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.04" radius="0.04"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.09" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.04" radius="0.04"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <joint name="joint_left" type="fixed">
+    <parent link="handle"/>
+    <child link="left_weight"/>
+  </joint>
+
+  <joint name="joint_right" type="fixed">
+    <parent link="handle"/>
+    <child link="right_weight"/>
+  </joint>
+</robot>
