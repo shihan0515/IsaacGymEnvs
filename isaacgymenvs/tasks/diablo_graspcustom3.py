@@ -796,6 +796,8 @@ def compute_diablo_reward(
     reset_buf = torch.where(progress_buf >= max_episode_length - 1, torch.ones_like(reset_buf), reset_buf)
     # 如果物品掉下桌面且不在平台上
     reset_buf = torch.where((object_pos[:, 2] < 0.2) & (~is_on_platform), torch.ones_like(reset_buf), reset_buf)
+    # 如果在桌面上倒下 (高度低於 2cm 且傾斜超過 60 度)
+    reset_buf = torch.where((object_height < 0.02) & (mug_dot_up < 0.5), torch.ones_like(reset_buf), reset_buf)
 
     return rewards, reset_buf
 
