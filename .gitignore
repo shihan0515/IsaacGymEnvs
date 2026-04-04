@@ -31,3 +31,5 @@ runs/
 outputs/
 *.hydra*
 /isaacgymenvs/wandb
+base-isaacgym-v4/
+rl_games-1.6.1/
