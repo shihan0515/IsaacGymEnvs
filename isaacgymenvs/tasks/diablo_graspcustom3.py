@@ -262,7 +262,10 @@ class DiabloGraspCustom3(VecTask):
         mug_asset_options.override_inertia = True
         mug_asset_options.vhacd_enabled = True
         mug_asset_options.vhacd_params = gymapi.VhacdParams()
-        mug_asset_options.vhacd_params.resolution = 1000
+        mug_asset_options.vhacd_params.resolution = 100000       # Higher = better shape fidelity (one-time load cost)
+        mug_asset_options.vhacd_params.max_convex_hulls = 16     # Fewer hulls → fewer collision pairs per step
+        mug_asset_options.vhacd_params.max_num_vertices_per_ch = 32  # Fewer vertices per hull → cheaper collision
+        mug_asset_options.vhacd_params.concavity = 0.005         # Slightly relaxed → fewer, simpler hulls
         self.object_asset = self.gym.load_asset(self.sim, asset_root, mug_asset_file, mug_asset_options)
         self.num_object_bodies = self.gym.get_asset_rigid_body_count(self.object_asset)
         self.num_object_shapes = self.gym.get_asset_rigid_shape_count(self.object_asset)
