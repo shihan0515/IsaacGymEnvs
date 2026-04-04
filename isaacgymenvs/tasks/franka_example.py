@@ -10,7 +10,7 @@ from isaacgymenvs.utils.torch_jit_utils import quat_mul, to_torch, tensor_clamp
 from isaacgymenvs.tasks.base.vec_task import VecTask
 
 
-@torch.jit.script
+# @torch.jit.script
 def axisangle2quat(vec, eps=1e-6):
     """
     Converts scaled axis-angle to quat.
@@ -686,7 +686,7 @@ class FrankaExample(VecTask):
 #####################################################################
 
 
-# @torch.jit.script
+# # @torch.jit.script
 # def compute_franka_reward(
 #     reset_buf, progress_buf, actions, states, reward_settings, max_episode_length
 # ):

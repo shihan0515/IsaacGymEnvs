@@ -4,7 +4,7 @@ import torch
 import math
 from isaacgym import gymtorch
 from isaacgym import gymapi
-from pynput import keyboard
+# from pynput import keyboard
 
 from isaacgymenvs.utils.torch_jit_utils import quat_to_euler, to_torch, get_axis_params, torch_rand_float, quat_rotate, quat_rotate_inverse, get_euler_xyz
 from isaacgymenvs.tasks.base.vec_task import VecTask
@@ -385,7 +385,7 @@ class Centaur(VecTask):
 #####################################################################
 ###=========================jit functions=========================###
 #####################################################################
-@torch.jit.script
+# @torch.jit.script
 def compute_centaur_observations(root_states,
                                 commands,
                                 dof_pos,
@@ -441,7 +441,7 @@ def compute_centaur_observations(root_states,
 
 # [[[[[[[[[[[[[[[Here the enviornments to reset are decided]]]]]]]]]]]]]]]
 # [[[[[[[[[[[[[[[{{{{{{{{{{{{{{{{{{REWARDs}}}}}}}}}}}}}}}}}}]]]]]]]]]]]]]]]
-@torch.jit.script
+# @torch.jit.script
 def compute_centaur_reward(
     # tensors
     root_states,

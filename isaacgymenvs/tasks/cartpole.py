@@ -177,7 +177,7 @@ class Cartpole(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_cartpole_reward(pole_angle, pole_vel, cart_vel, cart_pos,
                             reset_dist, reset_buf, progress_buf, max_episode_length):
     # type: (Tensor, Tensor, Tensor, Tensor, float, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]

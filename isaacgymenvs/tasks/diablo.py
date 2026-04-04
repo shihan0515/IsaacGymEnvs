@@ -614,7 +614,7 @@ class diablo(VecTask):
 #####################################################################
 ###=========================jit functions=========================###
 #####################################################################
-@torch.jit.script
+# @torch.jit.script
 def compute_op3_reward(
     # tensors
     root_states,
@@ -724,7 +724,7 @@ def compute_op3_reward(
     
     return total_reward.detach(), reset_buf
 
-@torch.jit.script
+# @torch.jit.script
 def compute_op3_observations(root_states,
                                 target,
                                 dof_pos,

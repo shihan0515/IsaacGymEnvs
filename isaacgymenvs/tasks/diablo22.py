@@ -36,7 +36,7 @@ from typing import Dict
 from isaacgymenvs.tasks.base.vec_task import VecTask
 from isaacgymenvs.utils import isaacgym_utils
 from isaacgymenvs.utils.torch_jit_utils import quat_to_euler, to_torch, get_axis_params, torch_rand_float, quat_rotate, quat_rotate_inverse, get_euler_xyz
-from pynput import keyboard
+# from pynput import keyboard
 from isaacgymenvs.utils.torch_jit_utils import *
 
 
@@ -1274,7 +1274,7 @@ class diablo22(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_diablo_reward(
     root_state: torch.Tensor,
     commands: torch.Tensor,

@@ -320,7 +320,7 @@ class Humanoid(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_humanoid_reward(
     obs_buf,
     reset_buf,
@@ -375,7 +375,7 @@ def compute_humanoid_reward(
     return total_reward, reset
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_humanoid_observations(obs_buf, root_states, targets, potentials, inv_start_rot, dof_pos, dof_vel,
                                   dof_force, dof_limits_lower, dof_limits_upper, dof_vel_scale,
                                   sensor_force_torques, actions, dt, contact_force_scale, angular_velocity_scale,

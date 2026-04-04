@@ -459,7 +459,7 @@ class HumanoidAMPBase(VecTask):
 ###=========================jit functions=========================###
 #####################################################################
 
-@torch.jit.script
+# @torch.jit.script
 def dof_to_obs(pose):
     # type: (Tensor) -> Tensor
     #dof_obs_size = 64
@@ -491,7 +491,7 @@ def dof_to_obs(pose):
 
     return dof_obs
 
-@torch.jit.script
+# @torch.jit.script
 def compute_humanoid_observations(root_states, dof_pos, dof_vel, key_body_pos, local_root_obs):
     # type: (Tensor, Tensor, Tensor, Tensor, bool) -> Tensor
     root_pos = root_states[:, 0:3]
@@ -527,13 +527,13 @@ def compute_humanoid_observations(root_states, dof_pos, dof_vel, key_body_pos, l
     obs = torch.cat((root_h, root_rot_obs, local_root_vel, local_root_ang_vel, dof_obs, dof_vel, flat_local_key_pos), dim=-1)
     return obs
 
-@torch.jit.script
+# @torch.jit.script
 def compute_humanoid_reward(obs_buf):
     # type: (Tensor) -> Tensor
     reward = torch.ones_like(obs_buf[:, 0])
     return reward
 
-@torch.jit.script
+# @torch.jit.script
 def compute_humanoid_reset(reset_buf, progress_buf, contact_buf, contact_body_ids, rigid_body_pos,
                            max_episode_length, enable_early_termination, termination_height):
     # type: (Tensor, Tensor, Tensor, Tensor, Tensor, float, bool, float) -> Tuple[Tensor, Tensor]

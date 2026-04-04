@@ -659,7 +659,7 @@ class DiabloGraspCustom2(VecTask):
         self.compute_observations()
         self.compute_reward()
 
-@torch.jit.script
+# @torch.jit.script
 def compute_diablo_reward(
     reset_buf, progress_buf, actions,
     eef_pos, handle_pos, eef_rot, handle_rot,
@@ -798,7 +798,7 @@ def compute_diablo_reward(
 
     return rewards, reset_buf
 
-@torch.jit.script
+# @torch.jit.script
 def tf_vector(rot, vec):
     # type: (Tensor, Tensor) -> Tensor
     return quat_apply(rot, vec)

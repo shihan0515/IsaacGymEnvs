@@ -1257,7 +1257,7 @@ class Trifinger(VecTask):
 ###=========================jit functions=========================###
 #####################################################################
 
-@torch.jit.script
+# @torch.jit.script
 def lgsk_kernel(x: torch.Tensor, scale: float = 50.0, eps:float=2) -> torch.Tensor:
     """Defines logistic kernel function to bound input to [-0.25, 0)
 
@@ -1274,7 +1274,7 @@ def lgsk_kernel(x: torch.Tensor, scale: float = 50.0, eps:float=2) -> torch.Tens
     scaled = x * scale
     return 1.0 / (scaled.exp() + eps + (-scaled).exp())
 
-@torch.jit.script
+# @torch.jit.script
 def gen_keypoints(pose: torch.Tensor, num_keypoints: int = 8, size: Tuple[float, float, float] = (0.065, 0.065, 0.065)):
 
     num_envs = pose.shape[0]
@@ -1289,7 +1289,7 @@ def gen_keypoints(pose: torch.Tensor, num_keypoints: int = 8, size: Tuple[float,
         keypoints_buf[:, i, :] = local_to_world_space(corner, pose)
     return keypoints_buf
 
-@torch.jit.script
+# @torch.jit.script
 def compute_trifinger_reward(
         obs_buf: torch.Tensor,
         reset_buf: torch.Tensor,
@@ -1383,7 +1383,7 @@ def compute_trifinger_reward(
     return total_reward, reset, info
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_trifinger_observations_states(
         asymmetric_obs: bool,
         dof_position: torch.Tensor,
@@ -1424,7 +1424,7 @@ Sampling of cuboidal object
 """
 
 
-@torch.jit.script
+# @torch.jit.script
 def random_xy(num: int, max_com_distance_to_center: float, device: str) -> Tuple[torch.Tensor, torch.Tensor]:
     """Returns sampled uniform positions in circle (https://stackoverflow.com/a/50746409)"""
     # sample radius of circle
@@ -1439,7 +1439,7 @@ def random_xy(num: int, max_com_distance_to_center: float, device: str) -> Tuple
     return x, y
 
 
-@torch.jit.script
+# @torch.jit.script
 def random_z(num: int, min_height: float, max_height: float, device: str) -> torch.Tensor:
     """Returns sampled height of the goal object."""
     z = torch.rand(num, dtype=torch.float, device=device)
@@ -1448,7 +1448,7 @@ def random_z(num: int, min_height: float, max_height: float, device: str) -> tor
     return z
 
 
-@torch.jit.script
+# @torch.jit.script
 def default_orientation(num: int, device: str) -> torch.Tensor:
     """Returns identity rotation transform."""
     quat = torch.zeros((num, 4,), dtype=torch.float, device=device)
@@ -1457,7 +1457,7 @@ def default_orientation(num: int, device: str) -> torch.Tensor:
     return quat
 
 
-@torch.jit.script
+# @torch.jit.script
 def random_orientation(num: int, device: str) -> torch.Tensor:
     """Returns sampled rotation in 3D as quaternion.
     Ref: https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.random.html
@@ -1469,7 +1469,7 @@ def random_orientation(num: int, device: str) -> torch.Tensor:
 
     return quat
 
-@torch.jit.script
+# @torch.jit.script
 def random_orientation_within_angle(num: int, device:str, base: torch.Tensor, max_angle: float):
     """ Generates random quaternions within max_angle of base
     Ref: https://math.stackexchange.com/a/3448434
@@ -1492,7 +1492,7 @@ def random_orientation_within_angle(num: int, device:str, base: torch.Tensor, ma
     return quat_mul(quat, base)
 
 
-@torch.jit.script
+# @torch.jit.script
 def random_angular_vel(num: int, device: str, magnitude_stdev: float) -> torch.Tensor:
     """Samples a random angular velocity with standard deviation `magnitude_stdev`"""
 
@@ -1502,7 +1502,7 @@ def random_angular_vel(num: int, device: str, magnitude_stdev: float) -> torch.T
     magnitude *= magnitude_stdev
     return magnitude * axis
 
-@torch.jit.script
+# @torch.jit.script
 def random_yaw_orientation(num: int, device: str) -> torch.Tensor:
     """Returns sampled rotation around z-axis."""
     roll = torch.zeros(num, dtype=torch.float, device=device)

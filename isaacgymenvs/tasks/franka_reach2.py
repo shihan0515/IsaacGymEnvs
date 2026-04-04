@@ -928,7 +928,7 @@ class FrankaReach2(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_franka_reward(
     reset_buf: torch.Tensor,
     progress_buf: torch.Tensor,

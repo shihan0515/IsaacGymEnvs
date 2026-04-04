@@ -673,14 +673,14 @@ class Terrain:
                 self.env_origins[i, j] = [env_origin_x, env_origin_y, env_origin_z]
 
 
-@torch.jit.script
+# @torch.jit.script
 def quat_apply_yaw(quat, vec):
     quat_yaw = quat.clone().view(-1, 4)
     quat_yaw[:, :2] = 0.
     quat_yaw = normalize(quat_yaw)
     return quat_apply(quat_yaw, vec)
 
-@torch.jit.script
+# @torch.jit.script
 def wrap_to_pi(angles):
     angles %= 2*np.pi
     angles -= 2*np.pi * (angles > np.pi)

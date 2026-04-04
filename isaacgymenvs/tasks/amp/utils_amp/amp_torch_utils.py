@@ -33,7 +33,7 @@ import numpy as np
 from isaacgymenvs.utils.torch_jit_utils import quat_mul, quat_conjugate, quat_from_angle_axis, \
     to_torch, get_axis_params, torch_rand_float, tensor_clamp  
 
-@torch.jit.script
+# @torch.jit.script
 def my_quat_rotate(q, v):
     shape = q.shape
     q_w = q[:, -1]
@@ -45,7 +45,7 @@ def my_quat_rotate(q, v):
             shape[0], 3, 1)).squeeze(-1) * 2.0
     return a + b + c
 
-@torch.jit.script
+# @torch.jit.script
 def quat_to_angle_axis(q):
     # type: (Tensor) -> Tuple[Tensor, Tensor]
     # computes axis-angle representation from quaternion q
@@ -68,7 +68,7 @@ def quat_to_angle_axis(q):
     axis = torch.where(mask_expand, axis, default_axis)
     return angle, axis
 
-@torch.jit.script
+# @torch.jit.script
 def angle_axis_to_exp_map(angle, axis):
     # type: (Tensor, Tensor) -> Tensor
     # compute exponential map from axis-angle
@@ -76,7 +76,7 @@ def angle_axis_to_exp_map(angle, axis):
     exp_map = angle_expand * axis
     return exp_map
 
-@torch.jit.script
+# @torch.jit.script
 def quat_to_exp_map(q):
     # type: (Tensor) -> Tensor
     # compute exponential map from quaternion
@@ -85,7 +85,7 @@ def quat_to_exp_map(q):
     exp_map = angle_axis_to_exp_map(angle, axis)
     return exp_map
 
-@torch.jit.script
+# @torch.jit.script
 def quat_to_tan_norm(q):
     # type: (Tensor) -> Tensor
     # represents a rotation using the tangent and normal vectors
@@ -100,14 +100,14 @@ def quat_to_tan_norm(q):
     norm_tan = torch.cat([tan, norm], dim=len(tan.shape) - 1)
     return norm_tan
 
-@torch.jit.script
+# @torch.jit.script
 def euler_xyz_to_exp_map(roll, pitch, yaw):
     # type: (Tensor, Tensor, Tensor) -> Tensor
     q = quat_from_euler_xyz(roll, pitch, yaw)
     exp_map = quat_to_exp_map(q)
     return exp_map
 
-@torch.jit.script
+# @torch.jit.script
 def exp_map_to_angle_axis(exp_map):
     min_theta = 1e-5
 
@@ -126,13 +126,13 @@ def exp_map_to_angle_axis(exp_map):
 
     return angle, axis
 
-@torch.jit.script
+# @torch.jit.script
 def exp_map_to_quat(exp_map):
     angle, axis = exp_map_to_angle_axis(exp_map)
     q = quat_from_angle_axis(angle, axis)
     return q
 
-@torch.jit.script
+# @torch.jit.script
 def slerp(q0, q1, t):
     # type: (Tensor, Tensor, Tensor) -> Tensor
     qx, qy, qz, qw = 0, 1, 2, 3
@@ -167,7 +167,7 @@ def slerp(q0, q1, t):
 
     return new_q
 
-@torch.jit.script
+# @torch.jit.script
 def calc_heading(q):
     # type: (Tensor) -> Tensor
     # calculate heading direction from quaternion
@@ -180,7 +180,7 @@ def calc_heading(q):
     heading = torch.atan2(rot_dir[..., 1], rot_dir[..., 0])
     return heading
 
-@torch.jit.script
+# @torch.jit.script
 def calc_heading_quat(q):
     # type: (Tensor) -> Tensor
     # calculate heading rotation from quaternion
@@ -193,7 +193,7 @@ def calc_heading_quat(q):
     heading_q = quat_from_angle_axis(heading, axis)
     return heading_q
 
-@torch.jit.script
+# @torch.jit.script
 def calc_heading_quat_inv(q):
     # type: (Tensor) -> Tensor
     # calculate heading rotation from quaternion

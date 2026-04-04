@@ -1194,7 +1194,7 @@ class diablo3(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_diablo_reward(
     reset_buf: torch.Tensor,
     progress_buf: torch.Tensor,

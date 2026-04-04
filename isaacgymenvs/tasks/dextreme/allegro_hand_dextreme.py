@@ -1595,7 +1595,7 @@ class AllegroHandDextremeManualDR(AllegroHandDextreme):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_hand_reward(
     rew_buf, reset_buf, reset_goal_buf, progress_buf, hold_count_buf, cur_targets, prev_targets, hand_dof_vel, successes, consecutive_successes,
     max_episode_length: float, object_pos, object_rot, target_pos, target_rot,
@@ -1663,7 +1663,7 @@ def compute_hand_reward(
         dist_rew, rot_rew, action_penalty, action_delta_penalty, velocity_penalty, reach_goal_rew, fall_rew, timeout_rew  # return individual rewards for visualization
 
 
-@torch.jit.script
+# @torch.jit.script
 def randomize_rotation(rand0, rand1, x_unit_tensor, y_unit_tensor):
     return quat_mul(quat_from_angle_axis(rand0 * np.pi, x_unit_tensor),
                     quat_from_angle_axis(rand1 * np.pi, y_unit_tensor))

@@ -1,4 +1,4 @@
-@torch.jit.script
+# @torch.jit.script
 def compute_diablo_reward(
     reset_buf, progress_buf, actions,
     object_z, initial_object_z,

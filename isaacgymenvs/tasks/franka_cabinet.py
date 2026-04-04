@@ -485,7 +485,7 @@ class FrankaCabinet(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_franka_reward(
     reset_buf, progress_buf, actions, cabinet_dof_pos,
     franka_grasp_pos, drawer_grasp_pos, franka_grasp_rot, drawer_grasp_rot,
@@ -553,7 +553,7 @@ def compute_franka_reward(
     return rewards, reset_buf
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_grasp_transforms(hand_rot, hand_pos, franka_local_grasp_rot, franka_local_grasp_pos,
                              drawer_rot, drawer_pos, drawer_local_grasp_rot, drawer_local_grasp_pos
                              ):

@@ -456,7 +456,7 @@ class BallBalance(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_bbot_reward(tray_positions, ball_positions, ball_velocities, ball_radius, reset_buf, progress_buf, max_episode_length):
     # type: (Tensor, Tensor, Tensor, float, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
     # calculating the norm for ball distance to desired height above the ground plane (i.e. 0.7)

@@ -308,7 +308,7 @@ class Anymal(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_anymal_reward(
     # tensors
     root_states,
@@ -351,7 +351,7 @@ def compute_anymal_reward(
     return total_reward.detach(), reset
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_anymal_observations(root_states,
                                 commands,
                                 dof_pos,

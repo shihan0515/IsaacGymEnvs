@@ -407,7 +407,7 @@ class Ingenuity(VecTask):
 ###=========================jit functions=========================###
 #####################################################################
 
-@torch.jit.script
+# @torch.jit.script
 def compute_ingenuity_reward(root_positions, target_root_positions, root_quats, root_linvels, root_angvels, reset_buf, progress_buf, max_episode_length):
     # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
 

@@ -366,7 +366,7 @@ class DiabloGraspCustom3(VecTask):
         self.compute_observations()
         self.compute_reward()
 
-@torch.jit.script
+# @torch.jit.script
 def compute_diablo_reward(
     reset_buf, progress_buf, actions,
     eef_pos, handle_pos, eef_rot, handle_rot,

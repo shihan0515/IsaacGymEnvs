@@ -322,7 +322,7 @@ class Ant(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_ant_reward(
     obs_buf,
     reset_buf,
@@ -371,7 +371,7 @@ def compute_ant_reward(
     return total_reward, reset
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_ant_observations(obs_buf, root_states, targets, potentials,
                              inv_start_rot, dof_pos, dof_vel,
                              dof_limits_lower, dof_limits_upper, dof_vel_scale,

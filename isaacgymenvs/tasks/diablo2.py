@@ -1004,7 +1004,7 @@ class diablo2(VecTask):
 #####################################################################
 
 
-@torch.jit.script
+# @torch.jit.script
 def compute_diablo_reward(
     reset_buf, progress_buf, actions,
     eef_pos, handle_pos, eef_rot, handle_rot,
@@ -1115,12 +1115,12 @@ def compute_diablo_reward(
 
     return rewards, reset_buf
 
-@torch.jit.script
+# @torch.jit.script
 def tf_vector(rot, vec):
     # type: (Tensor, Tensor) -> Tensor
     return quat_apply(rot, vec)
 
-@torch.jit.script
+# @torch.jit.script
 def compute_grasp_transforms(hand_rot, hand_pos, franka_local_grasp_rot, franka_local_grasp_pos,
                              drawer_rot, drawer_pos, drawer_local_grasp_rot, drawer_local_grasp_pos
                              ):
