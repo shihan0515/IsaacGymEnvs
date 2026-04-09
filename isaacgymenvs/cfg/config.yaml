@@ -57,6 +57,8 @@ force_render: True
 # disables rendering
 headless: False
 
+moe_num_actors: 1
+
 # set default task and default training config based on task
 defaults:
   - task: Ant

@@ -269,11 +269,18 @@ class A2CBuilder(NetworkBuilder):
             if self.is_multi_discrete:
                 self.logits = torch.nn.ModuleList([torch.nn.Linear(out_size, num) for num in actions_num])
             if self.is_continuous:
-                self.mu = torch.nn.Linear(out_size, actions_num)
                 self.mu_act = self.activations_factory.create(self.space_config['mu_activation']) 
                 mu_init = self.init_factory.create(**self.space_config['mu_init'])
                 self.sigma_act = self.activations_factory.create(self.space_config['sigma_activation']) 
                 sigma_init = self.init_factory.create(**self.space_config['sigma_init'])
+
+                if self.moe_num_actors > 1:
+                    self.mu_experts = nn.ModuleList([nn.Linear(out_size, actions_num) for _ in range(self.moe_num_actors)])
+                    self.mu_gate = nn.Linear(out_size, self.moe_num_actors)
+                    print(f"Using Mixture-of-Experts with {self.moe_num_actors} experts for the policy mean.")
+                    print(f"MoE Network architecture: {self.mu_experts} with gating network {self.mu_gate}")
+                else:
+                    self.mu = nn.Linear(out_size, actions_num)
 
                 if self.fixed_sigma:
                     self.sigma = nn.Parameter(torch.zeros(actions_num, requires_grad=True, dtype=torch.float32), requires_grad=True)
@@ -295,7 +302,11 @@ class A2CBuilder(NetworkBuilder):
                         torch.nn.init.zeros_(m.bias)    
 
             if self.is_continuous:
-                mu_init(self.mu.weight)
+                if self.moe_num_actors > 1:
+                    for expert in self.mu_experts:
+                        mu_init(expert.weight)
+                else:
+                    mu_init(self.mu.weight)
                 if self.fixed_sigma:
                     sigma_init(self.sigma)
                 else:
@@ -387,7 +398,7 @@ class A2CBuilder(NetworkBuilder):
                     return logits, value, states
 
                 if self.is_continuous:
-                    mu = self.mu_act(self.mu(a_out))
+                    mu = self.mu_act(self._compute_mu(a_out))
                     if self.fixed_sigma:
                         sigma = mu * 0.0 + self.sigma_act(self.sigma)
                     else:
@@ -444,13 +455,27 @@ class A2CBuilder(NetworkBuilder):
                     logits = [logit(out) for logit in self.logits]
                     return logits, value, states
                 if self.is_continuous:
-                    mu = self.mu_act(self.mu(out))
+                    mu = self.mu_act(self._compute_mu(out))
                     if self.fixed_sigma:
                         sigma = self.sigma_act(self.sigma)
                     else:
                         sigma = self.sigma_act(self.sigma(out))
                     return mu, mu*0 + sigma, value, states
-                    
+
+        def _compute_mu(self, actor_out):
+            """Compute action mean, using a mixture-of-experts policy when moe_num_actors > 1."""
+            if self.moe_num_actors > 1:
+                # [batch, moe_num_actors, actions_num]
+                expert_mus = torch.stack(
+                    [expert(actor_out) for expert in self.mu_experts],
+                    dim=1,
+                )
+                # [batch, moe_num_actors]
+                gate_weights = torch.softmax(self.mu_gate(actor_out), dim=-1)
+                # Weighted sum over experts -> [batch, actions_num]
+                return torch.sum(expert_mus * gate_weights.unsqueeze(-1), dim=1)
+            return self.mu(actor_out)
+
         def is_separate_critic(self):
             return self.separate
 
@@ -525,6 +550,8 @@ class A2CBuilder(NetworkBuilder):
                 self.permute_input = self.cnn.get('permute_input', True)
             else:
                 self.has_cnn = False
+
+            self.moe_num_actors = params.get('moe_num_actors', 1)
 
     def build(self, name, **kwargs):
         net = A2CBuilder.Network(self.params, **kwargs)
@@ -981,4 +1008,3 @@ class SACBuilder(NetworkBuilder):
             else:
                 self.is_discrete = False
                 self.is_continuous = False
-                

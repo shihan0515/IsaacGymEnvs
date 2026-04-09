@@ -5,7 +5,7 @@ physics_engine: ${..physics_engine}
 
 env:
   numEnvs: ${resolve_default:4096,${...num_envs}}
-  envSpacing: 1.5
+  envSpacing: 0.5
   episodeLength: 300
 
   enableCameraSensors: False
