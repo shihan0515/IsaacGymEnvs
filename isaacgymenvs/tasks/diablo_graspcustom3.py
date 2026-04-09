@@ -27,6 +27,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import sys
+import csv
 from typing import Tuple
 
 import numpy as np
@@ -70,8 +72,6 @@ class DiabloGraspCustom3(VecTask):
 
         # 用於持久化隨機位置的張量
         self.platform_pos_tensor = torch.zeros((self.cfg["env"]["numEnvs"], 3), dtype=torch.float32, device=sim_device)
-        self.target_marker_pos_tensor = torch.zeros((self.cfg["env"]["numEnvs"], 3), dtype=torch.float32, device=sim_device)
-        self.zone_marker_pos_tensor = torch.zeros((self.cfg["env"]["numEnvs"], 3), dtype=torch.float32, device=sim_device)
 
         # observation and action space
         # Actions: 4 right arm joints + 9 unused + 1 right gripper control = 14
@@ -93,6 +93,19 @@ class DiabloGraspCustom3(VecTask):
         self.orientation_reward_scale = self.cfg["env"]["rewards"].get("orientationRewardScale", 1.0)
         self.action_penalty_scale = self.cfg["env"]["rewards"].get("actionPenaltyScale", 1.0)
         self.stability_penalty_scale = self.cfg["env"]["rewards"].get("stabilityPenaltyScale", 1.0)
+
+        # 新增：用於記錄物體在平台上停留時間的張量
+        self.on_platform_duration = torch.zeros(self.cfg["env"]["numEnvs"], dtype=torch.float32, device=sim_device)
+
+        # 新增：用於統計總嘗試次數與總成功次數 (全域累計與分輪統計)
+        self.total_attempts = 0
+        self.total_successes = 0
+        self.round_success_rates = []
+        self.round_avg_l2_errors = [] # 儲存每一輪的平均誤差 (mm)
+        self.all_success_l2_errors = [] # 儲存所有成功案例的個別誤差 (mm)
+        self.current_round_attempts = 0
+        self.current_round_successes = 0
+        self.current_round_l2_errors = [] # 儲存當前輪成功案例的個別誤差 (mm)
 
         self.up_axis = "z"
         self.up_axis_idx = 2
@@ -304,37 +317,6 @@ class DiabloGraspCustom3(VecTask):
             object_actor = self.gym.create_actor(env_ptr, self.object_asset, object_start_pose, "mug", i, 2, 0) 
             self.object_handles.append(object_actor)
 
-            # --- 增加虛擬參考點 (Target Marker) ---
-            target_marker_opts = gymapi.AssetOptions()
-            target_marker_opts.fix_base_link = True
-            target_marker_opts.disable_gravity = True
-            target_marker_asset = self.gym.create_sphere(self.sim, 0.01, target_marker_opts)
-            
-            # 設定位置：使用 float 類型的 default_z 避免 Tensor 報錯
-            self.target_pos_local = gymapi.Vec3(
-                self.table_surface_pos.x,
-                self.table_surface_pos.y - 0.10, 
-                default_z + 0.05
-            )
-            target_pose = gymapi.Transform()
-            target_pose.p = self.target_pos_local
-            
-            # 使用碰撞組 -1 且遮罩為 1 來避免與任何物體碰撞
-            target_actor = self.gym.create_actor(env_ptr, target_marker_asset, target_pose, "target_marker", i, 1, 1)
-            # --- 增加馬克杯重製範圍標記 (Reset Zone Marker) ---
-            zone_marker_opts = gymapi.AssetOptions()
-            zone_marker_opts.fix_base_link = True
-            zone_marker_opts.disable_gravity = True
-            # X 範圍約 0.04m, Y 範圍約 0.10m
-            zone_marker_asset = self.gym.create_box(self.sim, 0.20, 0.15, 0.001, zone_marker_opts)
-            
-            # 初始位置預設在桌面上
-            zone_pose = gymapi.Transform()
-            zone_actor = self.gym.create_actor(env_ptr, zone_marker_asset, zone_pose, 'zone_marker', i, 3, 1)
-            self.gym.set_rigid_body_color(env_ptr, zone_actor, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.1, 0.1, 1.0)) # 藍色
-
-            self.gym.set_rigid_body_color(env_ptr, target_actor, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.0, 1.0, 0.0)) # 綠色
-
             # --- 創建漂浮小平台 Actor ---
             platform_pose = gymapi.Transform()
             platform_pose.p = gymapi.Vec3(0.4, -0.2, 0.4)
@@ -345,12 +327,10 @@ class DiabloGraspCustom3(VecTask):
             self.gym.end_aggregate(env_ptr)
             self.envs.append(env_ptr)
 
-        self.diablo_actor_ids = torch.arange(0, self.num_envs * 6, 6, dtype=torch.int32, device=self.device)
-        self.table_actor_ids = torch.arange(1, self.num_envs * 6, 6, dtype=torch.int32, device=self.device)
-        self.object_actor_ids = torch.arange(2, self.num_envs * 6, 6, dtype=torch.int32, device=self.device)
-        self.target_actor_ids = torch.arange(3, self.num_envs * 6, 6, dtype=torch.int32, device=self.device)
-        self.zone_actor_ids = torch.arange(4, self.num_envs * 6, 6, dtype=torch.int32, device=self.device)
-        self.platform_actor_ids = torch.arange(5, self.num_envs * 6, 6, dtype=torch.int32, device=self.device)
+        self.diablo_actor_ids = torch.arange(0, self.num_envs * 4, 4, dtype=torch.int32, device=self.device)
+        self.table_actor_ids = torch.arange(1, self.num_envs * 4, 4, dtype=torch.int32, device=self.device)
+        self.object_actor_ids = torch.arange(2, self.num_envs * 4, 4, dtype=torch.int32, device=self.device)
+        self.platform_actor_ids = torch.arange(3, self.num_envs * 4, 4, dtype=torch.int32, device=self.device)
 
         self.eef_handle = self.gym.find_actor_rigid_body_index(self.envs[0], self.actor_handles[0], "panda_grip_site", gymapi.DOMAIN_ENV)
         self.handle_target_handle = self.gym.find_actor_rigid_body_index(self.envs[0], self.object_handles[0], "handle_target", gymapi.DOMAIN_ENV)
@@ -391,15 +371,12 @@ class DiabloGraspCustom3(VecTask):
 
     def _update_states(self):
         # 使用 reset_idx 中儲存的隨機位置更新 root_state
-        self.root_state[self.target_actor_ids, :3] = self.target_marker_pos_tensor
-        self.root_state[self.zone_actor_ids, :3] = self.zone_marker_pos_tensor
         self.root_state[self.platform_actor_ids, :3] = self.platform_pos_tensor
-        
+
         # 同步這些固定 Actor 的位置到模擬器
-        all_fixed_indices = torch.cat([self.zone_actor_ids, self.target_actor_ids, self.platform_actor_ids])
+        all_fixed_indices = self.platform_actor_ids
         self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self.root_state),
                                                      gymtorch.unwrap_tensor(all_fixed_indices), len(all_fixed_indices))
-
         self.states.update(
             {
                 "eef_pos": self.rigid_body_pos[:, self.eef_handle],
@@ -549,35 +526,53 @@ class DiabloGraspCustom3(VecTask):
         self.gym.set_dof_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self.dof_state),
                                               gymtorch.unwrap_tensor(diablo_indices), len(diablo_indices))
 
+        # --- 基於機器人底盤姿態動態生成物品位置 ---
         object_indices = self.object_actor_ids[env_ids].to(torch.int32)
-        sample_mug_pos = torch.zeros(num_resets, 3, device=self.device)
-        
-        x_noise = (torch.rand(num_resets, device=self.device) - 0.5) * 2.0
-        sample_mug_pos[:, 0] = 0.20 + x_noise * 0.075
-        sample_mug_pos[:, 1] = self.table_surface_pos.y - (0.075 + torch.rand(num_resets, device=self.device) * 0.15)
+        robot_base_pos = self.root_state[self.diablo_actor_ids[env_ids], :3]
+        robot_quats = self.root_state[self.diablo_actor_ids[env_ids], 3:7]
+
+        # 1. 定義物品相對於機器人的本地舒適抓取區 (Local Golden Zone)
+        # 假設機器人前方為 +X, 右側為 -Y (Diablo 手臂通常在右側)
+        local_mug_x = 0.22 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.10 # 前後 5cm 隨機
+        local_mug_y = -0.15 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.08 # 針對右臂優化：右偏 15cm 附近
+        local_mug_z = torch.zeros(num_resets, device=self.device)
+        local_mug_pos = torch.stack([local_mug_x, local_mug_y, local_mug_z], dim=-1)
+
+        # 2. 將本地坐標旋轉到世界坐標 (考慮機器人的 Yaw 和 Pitch)
+        world_mug_offset = quat_apply(robot_quats, local_mug_pos)
+        sample_mug_pos = robot_base_pos + world_mug_offset
+        # 強制電鑽貼合桌面高度
         sample_mug_pos[:, 2] = self.initial_object_z[env_ids]
+        
+        # 3. 邊界檢查 (防止機器人旋轉太極端導致物品出桌)
+        sample_mug_pos[:, 0] = torch.clamp(sample_mug_pos[:, 0], min=0.10, max=0.45)
+        sample_mug_pos[:, 1] = torch.clamp(sample_mug_pos[:, 1], min=-0.35, max=0.35)
         self.root_state[object_indices, :3] = sample_mug_pos
 
+        # 設定物品初始旋轉 (維持對準手部，但增加隨機雜訊)
         initial_mug_rot = torch.tensor([0, 0, 0, 1], dtype=torch.float32, device=self.device).unsqueeze(0).repeat(num_resets, 1)
         aa_rot = torch.zeros(num_resets, 3, device=self.device)
-        aa_rot[:, 2] = np.pi + 2.0 * self.start_rotation_noise * (torch.rand(num_resets, device=self.device) - 0.5)
+        # 讓電鑽手柄大致朝向手臂
+        aa_rot[:, 2] = np.pi + (torch.rand(num_resets, device=self.device) - 0.5) * 0.5
         self.root_state[object_indices, 3:7] = quat_mul(axisangle2quat(aa_rot), initial_mug_rot)
         self.root_state[object_indices, 7:13] = 0.0
         
-        # 強制設定標記物坐標，確保不掉在地上
-        self.target_marker_pos_tensor[env_ids, 0] = 0.25
-        self.target_marker_pos_tensor[env_ids, 1] = self.table_surface_pos.y - 0.10
-        self.target_marker_pos_tensor[env_ids, 2] = self.initial_object_z[env_ids] + 0.15
+        # --- 同步調整 平台 (Platform) 的座標 ---
+        # 讓平台出現在機器人旋轉後的另一個舒適區，確保搬運路徑可達
+        local_plat_x = 0.15 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.05
+        local_plat_y = -0.25 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.05 # 比抓取點更靠右一點
+        local_plat_pos = torch.stack([local_plat_x, local_plat_y, local_mug_z], dim=-1) # 使用相同的 Z 底層
         
-        self.zone_marker_pos_tensor[env_ids, 0] = 0.20
-        self.zone_marker_pos_tensor[env_ids, 1] = self.table_surface_pos.y - 0.15
-        self.zone_marker_pos_tensor[env_ids, 2] = 0.356
+        world_plat_offset = quat_apply(robot_quats, local_plat_pos)
+        sample_plat_pos = robot_base_pos + world_plat_offset
         
+        self.platform_pos_tensor[env_ids, 0] = sample_plat_pos[:, 0]
+        self.platform_pos_tensor[env_ids, 1] = sample_plat_pos[:, 1]
+        self.platform_pos_tensor[env_ids, 2] = -1.0 # 初始依然隱藏，直到抬起
+
         # --- 初始隱藏漂浮小平台 (Z = -1.0) ---
         platform_indices = self.platform_actor_ids[env_ids].to(torch.int32)
-        self.platform_pos_tensor[env_ids, 0] = 0.18
-        self.platform_pos_tensor[env_ids, 1] = -0.30
-        self.platform_pos_tensor[env_ids, 2] = -1.0
+        # 移除舊的固定坐標設定，改用上面算好的 sample_plat_pos
         
         self.root_state[platform_indices, :3] = self.platform_pos_tensor[env_ids]
         self.root_state[platform_indices, 3:7] = torch.tensor([0.0, 0.0, 0.0, 1.0], device=self.device).repeat(num_resets, 1)
@@ -586,14 +581,14 @@ class DiabloGraspCustom3(VecTask):
         all_indices = torch.cat([
             self.diablo_actor_ids[env_ids], 
             self.object_actor_ids[env_ids], 
-            self.target_actor_ids[env_ids], 
-            self.zone_actor_ids[env_ids],
             self.platform_actor_ids[env_ids]
         ]).to(torch.int32)
         self.gym.set_actor_root_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self.root_state),
                                                      gymtorch.unwrap_tensor(all_indices), len(all_indices))
         self.progress_buf[env_ids] = 0
         self.reset_buf[env_ids] = 0
+        # 新增：重製計時器
+        self.on_platform_duration[env_ids] = 0.0
 
     def pre_physics_step(self, actions):
         self.prev_actions = self.actions.clone()
@@ -659,6 +654,147 @@ class DiabloGraspCustom3(VecTask):
             self.reset_idx(env_ids)
         self.compute_observations()
         self.compute_reward()
+
+        # --- 新增：偵測停留在平台上 0.2 秒重製 ---
+        object_pos = self.states["mug_pos"]
+        platform_pos = self.platform_pos_tensor
+        
+        # 1. 計算 XY 平面距離
+        dist_xy = torch.norm(object_pos[:, :2] - platform_pos[:, :2], p=2, dim=-1)
+        # 2. 計算 Z 軸高度差 (參考獎勵函數邏輯)
+        platform_surface_z = platform_pos[:, 2] + 0.005 # 平台表面 Z
+        object_bottom_z = object_pos[:, 2] - 0.05       # 物體底部 Z
+        dist_z = torch.abs(object_bottom_z - platform_surface_z)
+        
+        # 判斷是否在平台上：XY < 2.5cm 且 Z < 1.5cm，且平台必須已出現 (Z > 0)
+        is_on_platform = (dist_xy < 0.025) & (dist_z < 0.015) & (platform_pos[:, 2] > 0)
+        
+        # 更新計時器 (dt 是物理步長)
+        self.on_platform_duration = torch.where(is_on_platform, 
+                                               self.on_platform_duration + self.dt, 
+                                               torch.zeros_like(self.on_platform_duration))
+        
+        # 如果時間超過 0.2 秒，強制觸發重製，並標記該 Episode 成功
+        stay_success = (self.on_platform_duration >= 0.2)
+        
+        # 僅在重製時將成功狀態紀錄到 extras，這樣 RL-Games 才會正確計算平均成功率
+        # 我們將 stay_success 紀錄下來，在 reset_idx 中放入 extras
+        self.reset_buf = torch.where(stay_success, 
+                                    torch.ones_like(self.reset_buf), 
+                                    self.reset_buf)
+        
+        # 處理成功率紀錄 (針對剛被重製的環境)
+        reseting_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
+        
+        # 使用 RL-Games 辨識度最高的名稱 'success_rate'
+        if "success_rate" not in self.extras:
+            self.extras["success_rate"] = torch.tensor(0.0, device=self.device)
+
+        # --- 註解評估統計與自動中斷部分，以便進行持續訓練 ---
+        # if len(reseting_env_ids) > 0:
+        #     is_successful_reset = stay_success[reseting_env_ids]
+        #     
+        #     # 計算這些環境目前的 L2 誤差 (轉換為 mm)
+        #     current_errors_mm = dist_xy[reseting_env_ids] * 1000.0
+        #     
+        #     # 遍歷這一步中所有重製的環境，逐一計入統計
+        #     for i in range(len(reseting_env_ids)):
+        #         # 只有在還沒集滿 10 輪時才紀錄
+        #         if len(self.round_success_rates) < 10:
+        #             self.total_attempts += 1
+        #             self.current_round_attempts += 1
+        #             
+        #             if is_successful_reset[i]:
+        #                 self.total_successes += 1
+        #                 self.current_round_successes += 1
+        #                 # 紀錄該成功案例的 L2 誤差
+        #                 error_val = current_errors_mm[i].item()
+        #                 self.current_round_l2_errors.append(error_val)
+        #                 self.all_success_l2_errors.append(error_val)
+        #             
+        #             # 檢查當前輪是否剛好滿額
+        #             if self.current_round_attempts == self.num_envs:
+        #                 round_rate = self.current_round_successes / self.current_round_attempts
+        #                 self.round_success_rates.append(round_rate)
+        #                 
+        #                 # 計算該輪平均 L2 誤差
+        #                 avg_l2_error = sum(self.current_round_l2_errors) / len(self.current_round_l2_errors) if self.current_round_l2_errors else 0.0
+        #                 self.round_avg_l2_errors.append(avg_l2_error)
+        #                 
+        #                 round_num = len(self.round_success_rates)
+        #                 
+        #                 print(f"\033[96m[Round {round_num}/10 Complete]\033[0m 成功數: {self.current_round_successes}/{self.num_envs} | \033[1m成功率: {round_rate*100.0:.2f}% | 平均誤差: {avg_l2_error:.2f} mm\033[0m")
+        #                 
+        #                 # 紀錄 CSV
+        #                 try:
+        #                     csv_header = ["Round", "Successes", "Total_Attempts", "Success_Rate", "Avg_L2_Error_mm"]
+        #                     file_exists = os.path.isfile("evaluation_results.csv")
+        #                     with open("evaluation_results.csv", "a", newline="") as f:
+        #                         writer = csv.writer(f)
+        #                         # 如果是新的一趟測試 (Round 1) 且檔案已存在，多空一行做區隔
+        #                         if file_exists and round_num == 1:
+        #                             writer.writerow([])
+        #                             writer.writerow([]) # 多空一行
+        #                             writer.writerow(csv_header) # 重新寫入標題方便閱讀                                
+        #                         if not file_exists:
+        #                             writer.writerow(csv_header)
+        #                         writer.writerow([round_num, self.current_round_successes, self.num_envs, f"{round_rate*100.0:.2f}%", f"{avg_l2_error:.4f}"])
+        #                 except: pass
+        #                 
+        #                 # 歸零進入下一輪
+        #                 self.current_round_attempts = 0
+        #                 self.current_round_successes = 0
+        #                 self.current_round_l2_errors = []
+        #     
+        #     # 定義測試目標：10 輪完成
+        #     if len(self.round_success_rates) >= 10:
+        #         final_average_rate = (sum(self.round_success_rates) / 10) * 100.0
+        #         final_l2_error = sum(self.all_success_l2_errors) / len(self.all_success_l2_errors) if self.all_success_l2_errors else 0.0
+        #         
+        #         # 寫入最終平均值到 CSV
+        #         try:
+        #             with open("evaluation_results.csv", "a", newline="") as f:
+        #                 writer = csv.writer(f)
+        #                 writer.writerow([])
+        #                 writer.writerow([]) # 多空一行
+        #                 writer.writerow(["FINAL_AVERAGE", "", self.num_envs * 10, f"{final_average_rate:.2f}%", f"{final_l2_error:.4f}"])
+        #         except: pass
+        #
+        #         print("\n" + "★"*60)
+        #         print(f"\033[92;1m[10-ROUND EVALUATION COMPLETED]\033[0m")
+        #         print(f"每輪測試規模: {self.num_envs} | 總輪數: 10")
+        #         print(f"總計成功次數: {self.total_successes} / {self.num_envs * 10}")
+        #         print(f"\033[1;42m 最終 10 輪平均成功率: {final_average_rate:.2f}% \033[0m")
+        #         print(f"\033[1;44m 最終平均放置誤差 (L2 Error): {final_l2_error:.2f} mm \033[0m")
+        #         print("★"*60 + "\n")
+        #         
+        #         # 寫入最終詳細報告
+        #         try:
+        #             with open("success_stats_report.py", "w") as f:
+        #                 f.write(f"# Isaac Gym 10-Round Weighted Average Report\n")
+        #                 f.write(f"NUM_ENVS = {self.num_envs}\n")
+        #                 f.write(f"INDIVIDUAL_ROUND_RATES = {[round(r*100.0, 2) for r in self.round_success_rates]}\n")
+        #                 f.write(f"INDIVIDUAL_ROUND_L2_ERRORS = {[round(e, 2) for e in self.round_avg_l2_errors]}\n")
+        #                 f.write(f"TOTAL_ATTEMPTS = {self.total_attempts}\n")
+        #                 f.write(f"TOTAL_SUCCESSES = {self.total_successes}\n")
+        #                 f.write(f"FINAL_AVERAGE_SUCCESS_RATE = \"{final_average_rate:.2f}%\"\n")
+        #                 f.write(f"FINAL_AVERAGE_L2_ERROR = \"{final_l2_error:.4f} mm\"\n")
+        #         except Exception as e:
+        #             print(f"Error writing final report: {e}")
+        #         
+        #         # 自動中止程式
+        #         print("\033[93m[Final Alert]\033[0m 測試已完成，正在自動中止程式...")
+        #         sys.exit(0)
+        #     else:
+        #         # 顯示當前進度 (總次數 / 總目標)
+        #         target_total = self.num_envs * 10
+        #         if self.total_attempts % (max(1, self.num_envs // 4)) == 0:
+        #             print(f"\033[94m[Eval Progress: {self.total_attempts}/{target_total}]\033[0m")
+
+        # 回報當前批次的成功率給 Tensorboard
+        if len(reseting_env_ids) > 0:
+            avg_success = stay_success[reseting_env_ids].float().mean()
+            self.extras["rewards/successes"] = avg_success
 
 @torch.jit.script
 def compute_diablo_reward(
