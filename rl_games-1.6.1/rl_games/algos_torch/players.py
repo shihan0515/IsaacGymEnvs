@@ -71,7 +71,10 @@ class PpoPlayerContinuous(BasePlayer):
 
     def restore(self, fn):
         checkpoint = torch_ext.load_checkpoint(fn)
-        self.model.load_state_dict(checkpoint['model'])
+        model_state = checkpoint['model']
+        if any(k.startswith('_orig_mod.') for k in model_state.keys()):
+            model_state = {k.replace('_orig_mod.', '', 1): v for k, v in model_state.items()}
+        self.model.load_state_dict(model_state)
         if self.normalize_input and 'running_mean_std' in checkpoint:
             self.model.running_mean_std.load_state_dict(checkpoint['running_mean_std'])
 
@@ -175,7 +178,10 @@ class PpoPlayerDiscrete(BasePlayer):
 
     def restore(self, fn):
         checkpoint = torch_ext.load_checkpoint(fn)
-        self.model.load_state_dict(checkpoint['model'])
+        model_state = checkpoint['model']
+        if any(k.startswith('_orig_mod.') for k in model_state.keys()):
+            model_state = {k.replace('_orig_mod.', '', 1): v for k, v in model_state.items()}
+        self.model.load_state_dict(model_state)
         if self.normalize_input and 'running_mean_std' in checkpoint:
             self.model.running_mean_std.load_state_dict(checkpoint['running_mean_std'])
 
