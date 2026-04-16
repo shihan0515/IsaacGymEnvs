@@ -106,6 +106,11 @@ class DiabloGraspCustom3(VecTask):
         self.current_round_attempts = 0
         self.current_round_successes = 0
         self.current_round_l2_errors = [] # 儲存當前輪成功案例的個別誤差 (mm)
+        # Per-env flag: did THIS episode succeed at least once?
+        self.episode_success = torch.zeros(self.cfg["env"]["numEnvs"], dtype=torch.bool, device=sim_device)
+        # Per-env placement distance at the moment of success (XY dist, meters)
+        self.episode_placement_dist = torch.zeros(self.cfg["env"]["numEnvs"], dtype=torch.float32, device=sim_device)
+        self.total_placement_dist_sum = 0.0
 
         self.up_axis = "z"
         self.up_axis_idx = 2
@@ -381,8 +386,8 @@ class DiabloGraspCustom3(VecTask):
             {
                 "eef_pos": self.rigid_body_pos[:, self.eef_handle],
                 "eef_rot": self.rigid_body_rot[:, self.eef_handle],
-                "mug_pos": self.root_state[self.object_actor_ids, :3],
-                "mug_rot": self.root_state[self.object_actor_ids, 3:7],
+                "object_pos": self.root_state[self.object_actor_ids, :3],
+                "object_rot": self.root_state[self.object_actor_ids, 3:7],
                 "handle_target_pos": self.rigid_body_pos[:, self.handle_target_handle],
                 "handle_target_rot": self.rigid_body_rot[:, self.handle_target_handle],
                 "dof_pos": self.dof_pos,
@@ -408,7 +413,7 @@ class DiabloGraspCustom3(VecTask):
             self.rew_buf[:], self.reset_buf[:], 
             dist_rew, rot_rew, grasp_rew, lift_rew, 
             trans_rew, place_rew, orientation_rew, release_rew, 
-            retreat_rew, success_rew, total_penalties
+            retreat_rew, success_rew, total_penalties, is_success
         ) = compute_diablo_reward(
             self.reset_buf, self.progress_buf, self.actions,
             self.states["eef_pos"], self.states["handle_target_pos"],
@@ -417,7 +422,7 @@ class DiabloGraspCustom3(VecTask):
             self.num_envs, self.dist_reward_scale, self.rot_reward_scale, 1.0, 1.0,
             1.0, self.action_penalty_scale, self.lift_reward_scale, self.orientation_reward_scale,
             self.max_episode_length,
-            self.states["mug_pos"], self.states["mug_rot"], self.initial_object_z,
+            self.states["object_pos"], self.states["object_rot"], self.initial_object_z,
             platform_pos,
             self.root_state[self.diablo_actor_ids, 3:7], # robot_rot
             self.object_half_height
@@ -436,6 +441,27 @@ class DiabloGraspCustom3(VecTask):
         self.extras["rewards/success_bonus"] = success_rew.mean()
         self.extras["rewards/penalties"] = total_penalties.mean()
 
+        # Accumulate per-env episode success (any step within the episode that fires is_success)
+        self.episode_success |= is_success
+
+        # Compute XY placement distance (object bottom to platform center) at success moment
+        mug_rot = self.states["object_rot"]
+        mug_up_local = torch.zeros_like(self.states["object_pos"])
+        mug_up_local[:, 2] = 1.0
+        world_mug_up = quat_apply(mug_rot, mug_up_local)
+        object_bottom_pos = self.states["object_pos"] - self.object_half_height * world_mug_up
+        dist_xy_to_platform = torch.norm(object_bottom_pos[:, :2] - self.platform_pos_tensor[:, :2], p=2, dim=-1)
+        # Latch the placement distance for envs that just succeeded
+        self.episode_placement_dist = torch.where(is_success, dist_xy_to_platform, self.episode_placement_dist)
+
+        # Log running totals to extras (counts updated at reset time in post_physics_step)
+        success_rate = self.total_successes / max(self.total_attempts, 1)
+        current_round_rate = self.current_round_successes / max(self.current_round_attempts, 1)
+        mean_placement_dist = self.total_placement_dist_sum / max(self.total_successes, 1)
+        self.extras["metrics/success_rate"] = success_rate
+        self.extras["metrics/current_round_success_rate"] = current_round_rate
+        self.extras["metrics/mean_placement_dist_m"] = mean_placement_dist
+
     def compute_observations(self):
         self._refresh_tensors()
         delta = self.dof_upper_limits - self.dof_lower_limits
@@ -450,8 +476,8 @@ class DiabloGraspCustom3(VecTask):
         self.obs_buf[:, 1 + self.num_dofs : 1 + 2 * self.num_dofs] = obs_dof_vel
         
         start_idx = 1 + 2 * self.num_dofs
-        self.obs_buf[:, start_idx : start_idx + 3] = self.states["mug_pos"]
-        self.obs_buf[:, start_idx + 3 : start_idx + 7] = self.states["mug_rot"]
+        self.obs_buf[:, start_idx : start_idx + 3] = self.states["object_pos"]
+        self.obs_buf[:, start_idx + 3 : start_idx + 7] = self.states["object_rot"]
         
         # 關鍵：加入相對位移 (佔用 3 維)
         self.obs_buf[:, start_idx + 7 : start_idx + 10] = rel_pos
@@ -462,11 +488,11 @@ class DiabloGraspCustom3(VecTask):
         self.obs_buf[:, start_idx + 22] = self.target_pitch
         
         # 新增：計算馬克杯底部的世界座標 (考慮旋轉)，讓 AI 學習對準底部
-        mug_rot = self.states["mug_rot"]
-        mug_pos = self.states["mug_pos"]
+        object_rot = self.states["object_rot"]
+        object_pos = self.states["object_pos"]
         mug_up_local = torch.tensor([0.0, 0.0, 1.0], device=self.device).repeat(self.num_envs, 1)
-        mug_up_world = quat_apply(mug_rot, mug_up_local)
-        mug_bottom_pos = mug_pos - self.object_half_height * mug_up_world
+        mug_up_world = quat_apply(object_rot, mug_up_local)
+        mug_bottom_pos = object_pos - self.object_half_height * mug_up_world
 
         # 新增：平台位置 (3) 與 物品底部到平台的位移 (3)
         rel_bottom_to_plat = self.platform_pos_tensor - mug_bottom_pos
@@ -545,8 +571,6 @@ class DiabloGraspCustom3(VecTask):
         combined_quat = quat_from_euler_xyz(torch.zeros_like(p_target), p_target, y_target)
         self.root_state[self.diablo_actor_ids[env_ids], 3:7] = combined_quat
         self.root_state[self.diablo_actor_ids[env_ids], 7:13] = 0.0
-
-
         
         diablo_indices = self.diablo_actor_ids[env_ids].to(torch.int32)
         self.gym.set_dof_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self.dof_state),
@@ -616,6 +640,11 @@ class DiabloGraspCustom3(VecTask):
         self.reset_buf[env_ids] = 0
         # 新增：重製計時器
         self.on_platform_duration[env_ids] = 0.0
+        # 清除動作緩衝，避免舊 episode 的動作污染新 episode 的第一筆觀測
+        self.actions[env_ids] = 0.0
+        self.prev_actions[env_ids] = 0.0
+        self.episode_success[env_ids] = False
+        self.episode_placement_dist[env_ids] = 0.0
 
     def pre_physics_step(self, actions):
         self.prev_actions = self.actions.clone()
@@ -664,7 +693,7 @@ class DiabloGraspCustom3(VecTask):
 
         # --- 新增：平台動態出現邏輯 ---
         # 檢測物體是否被抬高 (Height > 0.02m)
-        object_heights = self.states["mug_pos"][:, 2] - self.initial_object_z
+        object_heights = self.states["object_pos"][:, 2] - self.initial_object_z
         # 這裡不強求 is_grasping，只要高度到了就視為觸發出現
         should_appear = (object_heights > 0.02)
         
@@ -678,156 +707,32 @@ class DiabloGraspCustom3(VecTask):
 
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         if len(env_ids) > 0:
+            # Count completed episodes BEFORE resetting, using the per-env episode_success flag
+            num_resets = len(env_ids)
+            success_mask = self.episode_success[env_ids]
+            num_ep_successes = success_mask.sum().item()
+            # Accumulate placement distance only for successful episodes
+            if num_ep_successes > 0:
+                self.total_placement_dist_sum += self.episode_placement_dist[env_ids][success_mask].sum().item()
+            self.total_attempts += num_resets
+            self.total_successes += num_ep_successes
+            self.current_round_attempts += num_resets
+            self.current_round_successes += num_ep_successes
+            success_rate = self.total_successes / max(self.total_attempts, 1)
+            # print(
+            #     f"[Success Rate] episodes_done={num_resets}  "
+            #     f"total_successes={self.total_successes}  "
+            #     f"total_episodes={self.total_attempts}  "
+            #     f"rate={success_rate:.4f} ({success_rate*100:.2f}%)"
+            # )
+
             self.reset_idx(env_ids)
+            # Clear per-env episode success flag for the newly started episodes
+            self.episode_success[env_ids] = False
         self.compute_observations()
         self.compute_reward()
 
-    #     # # --- 新增：偵測停留在平台上 0.2 秒重製 ---
-    #     object_pos = self.states["mug_pos"]
-    #     platform_pos = self.platform_pos_tensor
-        
-    #     # 1. 計算馬克杯底部的世界座標 (考慮旋轉)
-    #     mug_rot = self.states["mug_rot"]
-    #     mug_up_local = torch.tensor([0.0, 0.0, 1.0], device=self.device).repeat(self.num_envs, 1)
-    #     mug_up_world = quat_apply(mug_rot, mug_up_local)
-    #     mug_bottom_pos = object_pos - self.object_half_height * mug_up_world
-
-    #     # 2. 計算底部與平台的距離
-    #     dist_xy = torch.norm(mug_bottom_pos[:, :2] - platform_pos[:, :2], p=2, dim=-1)
-    #     platform_surface_z = platform_pos[:, 2] + 0.005 # 平台表面 Z
-    #     dist_z = torch.abs(mug_bottom_pos[:, 2] - platform_surface_z)
-        
-    #     # 判斷是否在平台上：XY < 2.5cm 且 Z < 1.5cm，且平台必須已出現 (Z > 0)
-    #     is_on_platform = (dist_xy < 0.05) & (dist_z < 0.015) & (platform_pos[:, 2] > 0)
-        
-    #     # 更新計時器 (dt 是物理步長)
-    #     self.on_platform_duration = torch.where(is_on_platform, 
-    #                                            self.on_platform_duration + self.dt, 
-    #                                            torch.zeros_like(self.on_platform_duration))
-        
-    #     # 如果時間超過 0.2 秒，強制觸發重製，並標記該 Episode 成功
-    #     stay_success = (self.on_platform_duration >= 0.2)
-        
-    #     # 僅在重製時將成功狀態紀錄到 extras，這樣 RL-Games 才會正確計算平均成功率
-    #     # 我們將 stay_success 紀錄下來，在 reset_idx 中放入 extras
-    #     self.reset_buf = torch.where(stay_success, 
-    #                                 torch.ones_like(self.reset_buf), 
-    #                                 self.reset_buf)
-        
-    #     # 處理成功率紀錄 (針對剛被重製的環境)
-    #     reseting_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
-        
-    #     # 使用 RL-Games 辨識度最高的名稱 'success_rate'
-    #     if "success_rate" not in self.extras:
-    #         self.extras["success_rate"] = torch.tensor(0.0, device=self.device)
-
-    #    # # --- 註解評估統計與自動中斷部分，以便進行持續訓練 ---
-    #     if len(reseting_env_ids) > 0:
-    #         is_successful_reset = stay_success[reseting_env_ids]
-            
-    #         # 計算這些環境目前的 L2 誤差 (轉換為 mm)
-    #         current_errors_mm = dist_xy[reseting_env_ids] * 1000.0
-            
-    #         # 遍歷這一步中所有重製的環境，逐一計入統計
-    #         for i in range(len(reseting_env_ids)):
-    #             # 只有在還沒集滿 10 輪時才紀錄
-    #             if len(self.round_success_rates) < 10:
-    #                 self.total_attempts += 1
-    #                 self.current_round_attempts += 1
-                    
-    #                 if is_successful_reset[i]:
-    #                     self.total_successes += 1
-    #                     self.current_round_successes += 1
-    #                     # 紀錄該成功案例的 L2 誤差
-    #                     error_val = current_errors_mm[i].item()
-    #                     self.current_round_l2_errors.append(error_val)
-    #                     self.all_success_l2_errors.append(error_val)
-                    
-    #                 # 檢查當前輪是否剛好滿額
-    #                 if self.current_round_attempts == self.num_envs:
-    #                     round_rate = self.current_round_successes / self.current_round_attempts
-    #                     self.round_success_rates.append(round_rate)
-                        
-    #                     # 計算該輪平均 L2 誤差
-    #                     avg_l2_error = sum(self.current_round_l2_errors) / len(self.current_round_l2_errors) if self.current_round_l2_errors else 0.0
-    #                     self.round_avg_l2_errors.append(avg_l2_error)
-                        
-    #                     round_num = len(self.round_success_rates)
-                        
-    #                     print(f"\033[96m[Round {round_num}/10 Complete]\033[0m 成功數: {self.current_round_successes}/{self.num_envs} | \033[1m成功率: {round_rate*100.0:.2f}% | 平均誤差: {avg_l2_error:.2f} mm\033[0m")
-                        
-    #                     # 紀錄 CSV
-    #                     try:
-    #                         csv_header = ["Round", "Successes", "Total_Attempts", "Success_Rate", "Avg_L2_Error_mm"]
-    #                         file_exists = os.path.isfile("evaluation_results.csv")
-    #                         with open("evaluation_results.csv", "a", newline="") as f:
-    #                             writer = csv.writer(f)
-    #                             # 如果是新的一趟測試 (Round 1) 且檔案已存在，多空一行做區隔
-    #                             if file_exists and round_num == 1:
-    #                                 writer.writerow([])
-    #                                 writer.writerow([]) # 多空一行
-    #                                 writer.writerow(csv_header) # 重新寫入標題方便閱讀                                
-    #                             if not file_exists:
-    #                                 writer.writerow(csv_header)
-    #                             writer.writerow([round_num, self.current_round_successes, self.num_envs, f"{round_rate*100.0:.2f}%", f"{avg_l2_error:.4f}"])
-    #                     except: pass
-                        
-    #                     # 歸零進入下一輪
-    #                     self.current_round_attempts = 0
-    #                     self.current_round_successes = 0
-    #                     self.current_round_l2_errors = []
-            
-    #         # 定義測試目標：10 輪完成
-    #         if len(self.round_success_rates) >= 10:
-    #             final_average_rate = (sum(self.round_success_rates) / 10) * 100.0
-    #             final_l2_error = sum(self.all_success_l2_errors) / len(self.all_success_l2_errors) if self.all_success_l2_errors else 0.0
-                
-    #             # 寫入最終平均值到 CSV
-    #             try:
-    #                 with open("evaluation_results.csv", "a", newline="") as f:
-    #                     writer = csv.writer(f)
-    #                     writer.writerow([])
-    #                     writer.writerow([]) # 多空一行
-    #                     writer.writerow(["FINAL_AVERAGE", "", self.num_envs * 10, f"{final_average_rate:.2f}%", f"{final_l2_error:.4f}"])
-    #             except: pass
-        
-    #             print("\n" + "★"*60)
-    #             print(f"\033[92;1m[10-ROUND EVALUATION COMPLETED]\033[0m")
-    #             print(f"每輪測試規模: {self.num_envs} | 總輪數: 10")
-    #             print(f"總計成功次數: {self.total_successes} / {self.num_envs * 10}")
-    #             print(f"\033[1;42m 最終 10 輪平均成功率: {final_average_rate:.2f}% \033[0m")
-    #             print(f"\033[1;44m 最終平均放置誤差 (L2 Error): {final_l2_error:.2f} mm \033[0m")
-    #             print("★"*60 + "\n")
-                
-    #             # 寫入最終詳細報告
-    #             try:
-    #                 with open("success_stats_report.py", "w") as f:
-    #                     f.write(f"# Isaac Gym 10-Round Weighted Average Report\n")
-    #                     f.write(f"NUM_ENVS = {self.num_envs}\n")
-    #                     f.write(f"INDIVIDUAL_ROUND_RATES = {[round(r*100.0, 2) for r in self.round_success_rates]}\n")
-    #                     f.write(f"INDIVIDUAL_ROUND_L2_ERRORS = {[round(e, 2) for e in self.round_avg_l2_errors]}\n")
-    #                     f.write(f"TOTAL_ATTEMPTS = {self.total_attempts}\n")
-    #                     f.write(f"TOTAL_SUCCESSES = {self.total_successes}\n")
-    #                     f.write(f"FINAL_AVERAGE_SUCCESS_RATE = \"{final_average_rate:.2f}%\"\n")
-    #                     f.write(f"FINAL_AVERAGE_L2_ERROR = \"{final_l2_error:.4f} mm\"\n")
-    #             except Exception as e:
-    #                 print(f"Error writing final report: {e}")
-                
-    #             # 自動中止程式
-    #             print("\033[93m[Final Alert]\033[0m 測試已完成，正在自動中止程式...")
-    #             sys.exit(0)
-    #         else:
-    #             # 顯示當前進度 (總次數 / 總目標)
-    #             target_total = self.num_envs * 10
-    #             if self.total_attempts % (max(1, self.num_envs // 4)) == 0:
-    #                 print(f"\033[94m[Eval Progress: {self.total_attempts}/{target_total}]\033[0m")
-
-    #     # 回報當前批次的成功率給 Tensorboard
-    #     if len(reseting_env_ids) > 0:
-    #         avg_success = stay_success[reseting_env_ids].float().mean()
-    #         self.extras["rewards/successes"] = avg_success
-
-@torch.jit.script
+# @torch.jit.script
 def compute_diablo_reward(
     reset_buf, progress_buf, actions,
     eef_pos, handle_pos, eef_rot, handle_rot,
@@ -840,7 +745,7 @@ def compute_diablo_reward(
     robot_rot,
     object_half_height
 ):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, int, float, float, float, float, float, float, float, float, float, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, int, float, float, float, float, float, float, float, float, float, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]
 
     # --- 1. Reaching and Alignment (靠近把手) ---
     d = torch.norm(eef_pos - handle_pos, p=2, dim=-1)
@@ -920,7 +825,8 @@ def compute_diablo_reward(
     current_retreat_dist = torch.clamp(eef_dist_to_obj, max=0.15)
     retreat_reward = torch.where(is_releasing, torch.pow(current_retreat_dist, 2) * 10000.0, torch.zeros_like(rot_reward))
     
-    is_success = is_releasing & (eef_dist_to_obj > 0.12)
+    is_success = is_releasing & (eef_dist_to_obj > 0.1) # Training
+    # is_success = is_releasing & (eef_dist_to_obj > 0.025) # Mug, Drill, Dumbbell evaluation
     success_reward = torch.where(is_success, torch.ones_like(rot_reward) * 1000.0, torch.zeros_like(rot_reward))
 
     # --- 6. Penalties (懲罰項) ---
@@ -939,13 +845,12 @@ def compute_diablo_reward(
     reset_buf = torch.where(progress_buf >= max_episode_length - 1, torch.ones_like(reset_buf), reset_buf)
     
     is_fallen = (object_pos[:, 2] < 0.2) & (~is_on_platform)
-    is_toppled = (object_height < 0.02) & (mug_dot_up < 0.5)
-    reset_buf = torch.where(is_fallen | is_toppled, torch.ones_like(reset_buf), reset_buf)
-
+    reset_buf = torch.where(is_fallen, torch.ones_like(reset_buf), reset_buf)
+    
     return (
         rewards, reset_buf, dist_reward, rot_reward, grasp_attempt_reward, 
         lift_reward, transport_reward, placement_reward, orientation_reward, 
-        release_reward, retreat_reward, success_reward, total_penalties
+        release_reward, retreat_reward, success_reward, total_penalties, is_success
     )
 
 

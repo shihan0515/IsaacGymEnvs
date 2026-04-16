@@ -32,3 +32,4 @@ outputs/
 *.hydra*
 /isaacgymenvs/wandb
 base-isaacgym-v4/
+logs/

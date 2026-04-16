@@ -282,6 +282,8 @@ class BasePlayer(object):
         games_played = 0
         has_masks = False
         has_masks_func = getattr(self.env, "has_action_mask", None) is not None
+        last_success_rate = None
+        last_placement_dist = None
 
         op_agent = getattr(self.env, "create_agent", None)
         if op_agent:
@@ -359,19 +361,27 @@ class BasePlayer(object):
                         if 'scores' in info:
                             print_game_res = True
                             game_res = info.get('scores', 0.5)
+                        if 'metrics/success_rate' in info:
+                            last_success_rate = info['metrics/success_rate']
+                        if 'metrics/mean_placement_dist_m' in info:
+                            last_placement_dist = info['metrics/mean_placement_dist_m']
 
                     if self.print_stats:
                         cur_rewards_done = cur_rewards/done_count
                         cur_steps_done = cur_steps/done_count
-                        if print_game_res:
-                            print(f'reward: {cur_rewards_done:.2f} steps: {cur_steps_done:.1f} w: {game_res}')
-                        else:
-                            print(f'reward: {cur_rewards_done:.2f} steps: {cur_steps_done:.1f}')
+                        # sr_str = f'  success_rate: {last_success_rate:.4f} ({last_success_rate*100:.2f}%)' if last_success_rate is not None else ''
+                        # pd_str = f'  placement_dist: {last_placement_dist*100:.2f}cm' if last_placement_dist is not None else ''
+                        # if print_game_res:
+                        #     print(f'reward: {cur_rewards_done:.2f} steps: {cur_steps_done:.1f} w: {game_res}', end='')
+                        # else:
+                        #     print(f'reward: {cur_rewards_done:.2f} steps: {cur_steps_done:.1f}', end='')
+                        # print(sr_str + pd_str)
 
                     sum_game_res += game_res
                     if batch_size//self.num_agents == 1 or games_played >= n_games:
                         break
 
+        print("*"*100)
         print(sum_rewards)
         if print_game_res:
             print('av reward:', sum_rewards / games_played * n_game_life, 'av steps:', sum_steps /
@@ -379,6 +389,10 @@ class BasePlayer(object):
         else:
             print('av reward:', sum_rewards / games_played * n_game_life,
                   'av steps:', sum_steps / games_played * n_game_life)
+        if last_success_rate is not None:
+            print(f'final success_rate: {last_success_rate:.4f} ({last_success_rate*100:.2f}%)')
+        if last_placement_dist is not None:
+            print(f'final mean_placement_dist: {last_placement_dist*100:.2f}cm ({last_placement_dist*1000:.1f}mm)')
 
     def get_batch_size(self, obses, batch_size):
         obs_shape = self.obs_shape

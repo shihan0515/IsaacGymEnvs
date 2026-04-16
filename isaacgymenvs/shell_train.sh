@@ -1,6 +1,5 @@
 #!/bin/bash
-# args=("42" "7" "123" "2021" "0" "193" "397")
-args=("42")
+args=("42" "7" "123" "2021" "0" "193" "397")
 
 GPU_ID=0  # Specify which GPU to use
 
