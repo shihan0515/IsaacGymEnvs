@@ -174,7 +174,7 @@ class DiabloGraspCustom3(VecTask):
         upper = gymapi.Vec3(spacing, spacing, spacing)
 
         asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../assets")
-        diablo_asset_file = "urdf/diab/Diablo_ger/Part_gripper_col_rev/URDF/diablo_erc1.urdf"
+        diablo_asset_file = self.cfg["env"]["asset"]["assetFileNamediablo"]
 
         asset_options = gymapi.AssetOptions()
         asset_options.flip_visual_attachments = False
@@ -183,7 +183,7 @@ class DiabloGraspCustom3(VecTask):
         asset_options.disable_gravity = False 
         asset_options.armature = 0.01
         asset_options.default_dof_drive_mode = gymapi.DOF_MODE_POS
-        asset_options.use_mesh_materials = True
+        asset_options.use_mesh_materials = False  # STL meshes carry no material data; use URDF <material> colors instead
         print(f"Loading asset {diablo_asset_file} from {asset_root}")
         diablo_asset = self.gym.load_asset(self.sim, asset_root, diablo_asset_file, asset_options)
         self.num_diablo_bodies = self.gym.get_asset_rigid_body_count(diablo_asset)

@@ -12,7 +12,7 @@ env:
 
   asset:
     assetRoot: "../../assets"
-    assetFileNamediablo: "urdf/diab/Diablo_ger/Part_gripper_col_rev/URDF/diablo_erc1.urdf"
+    assetFileNamediablo: "urdf/diab/Diablo_ger/Part_gripper_col_rev/URDF/diablo_erc_visualize.urdf"
 
   stiffness: 700
   damping: 50
