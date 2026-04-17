@@ -33,3 +33,4 @@ outputs/
 /isaacgymenvs/wandb
 base-isaacgym-v4/
 logs/
+*.png
