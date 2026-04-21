@@ -259,16 +259,16 @@ class DiabloGraspCustom3(VecTask):
         self.num_table_shapes = self.gym.get_asset_rigid_shape_count(table_stand_asset)
 
         object_asset_file = self.cfg["env"]["object"]["objectRoot"]
-        mug_asset_options = gymapi.AssetOptions()
-        mug_asset_options.fix_base_link = False
-        mug_asset_options.use_mesh_materials = True
-        mug_asset_options.mesh_normal_mode = gymapi.COMPUTE_PER_VERTEX
-        mug_asset_options.override_com = True
-        mug_asset_options.override_inertia = True
-        mug_asset_options.vhacd_enabled = True
-        mug_asset_options.vhacd_params = gymapi.VhacdParams()
-        mug_asset_options.vhacd_params.resolution = 1000
-        self.object_asset = self.gym.load_asset(self.sim, asset_root, object_asset_file, mug_asset_options)
+        object_asset_options = gymapi.AssetOptions()
+        object_asset_options.fix_base_link = False
+        object_asset_options.use_mesh_materials = True
+        object_asset_options.mesh_normal_mode = gymapi.COMPUTE_PER_VERTEX
+        object_asset_options.override_com = True
+        object_asset_options.override_inertia = True
+        object_asset_options.vhacd_enabled = True
+        object_asset_options.vhacd_params = gymapi.VhacdParams()
+        object_asset_options.vhacd_params.resolution = 1000
+        self.object_asset = self.gym.load_asset(self.sim, asset_root, object_asset_file, object_asset_options)
         self.num_object_bodies = self.gym.get_asset_rigid_body_count(self.object_asset)
         self.num_object_shapes = self.gym.get_asset_rigid_shape_count(self.object_asset)
         self.object_height = self.cfg["env"]["object"]["objectHeight"]
@@ -316,10 +316,10 @@ class DiabloGraspCustom3(VecTask):
             table_actor = self.gym.create_actor(env_ptr, table_stand_asset, table_stand_pose, "table", i, 1, 0)
             self.table_handles.append(table_actor)
 
-            mug_start_pos_z = default_z
-            object_start_pose.p = gymapi.Vec3(self.table_surface_pos.x, self.table_surface_pos.y + np.random.uniform(-0.25, 0.0), mug_start_pos_z)
+            object_start_pos_z = default_z
+            object_start_pose.p = gymapi.Vec3(self.table_surface_pos.x, self.table_surface_pos.y + np.random.uniform(-0.25, 0.0), object_start_pos_z)
             object_start_pose.r = gymapi.Quat(0.0, 0.0, 1.0, 0.0) 
-            object_actor = self.gym.create_actor(env_ptr, self.object_asset, object_start_pose, "mug", i, 2, 0) 
+            object_actor = self.gym.create_actor(env_ptr, self.object_asset, object_start_pose, "object", i, 2, 0) 
             self.object_handles.append(object_actor)
 
             # --- 創建漂浮小平台 Actor ---
@@ -445,11 +445,11 @@ class DiabloGraspCustom3(VecTask):
         self.episode_success |= is_success
 
         # Compute XY placement distance (object bottom to platform center) at success moment
-        mug_rot = self.states["object_rot"]
-        mug_up_local = torch.zeros_like(self.states["object_pos"])
-        mug_up_local[:, 2] = 1.0
-        world_mug_up = quat_apply(mug_rot, mug_up_local)
-        object_bottom_pos = self.states["object_pos"] - self.object_half_height * world_mug_up
+        object_rot = self.states["object_rot"]
+        object_up_local = torch.zeros_like(self.states["object_pos"])
+        object_up_local[:, 2] = 1.0
+        world_object_up = quat_apply(object_rot, object_up_local)
+        object_bottom_pos = self.states["object_pos"] - self.object_half_height * world_object_up
         dist_xy_to_platform = torch.norm(object_bottom_pos[:, :2] - self.platform_pos_tensor[:, :2], p=2, dim=-1)
         # Latch the placement distance for envs that just succeeded
         self.episode_placement_dist = torch.where(is_success, dist_xy_to_platform, self.episode_placement_dist)
@@ -490,12 +490,12 @@ class DiabloGraspCustom3(VecTask):
         # 新增：計算馬克杯底部的世界座標 (考慮旋轉)，讓 AI 學習對準底部
         object_rot = self.states["object_rot"]
         object_pos = self.states["object_pos"]
-        mug_up_local = torch.tensor([0.0, 0.0, 1.0], device=self.device).repeat(self.num_envs, 1)
-        mug_up_world = quat_apply(object_rot, mug_up_local)
-        mug_bottom_pos = object_pos - self.object_half_height * mug_up_world
+        object_up_local = torch.tensor([0.0, 0.0, 1.0], device=self.device).repeat(self.num_envs, 1)
+        world_object_up = quat_apply(object_rot, object_up_local)
+        object_bottom_pos = object_pos - self.object_half_height * world_object_up
 
         # 新增：平台位置 (3) 與 物品底部到平台的位移 (3)
-        rel_bottom_to_plat = self.platform_pos_tensor - mug_bottom_pos
+        rel_bottom_to_plat = self.platform_pos_tensor - object_bottom_pos
         self.obs_buf[:, start_idx + 23 : start_idx + 26] = self.platform_pos_tensor
         self.obs_buf[:, start_idx + 26 : start_idx + 29] = rel_bottom_to_plat
 
@@ -583,28 +583,28 @@ class DiabloGraspCustom3(VecTask):
 
         # 1. 定義物品相對於機器人的本地舒適抓取區 (Local Golden Zone)
         # 假設機器人前方為 +X, 右側為 -Y (Diablo 手臂通常在右側)
-        local_mug_x = 0.22 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.10 # 前後 5cm 隨機
-        local_mug_y = -0.15 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.08 # 針對右臂優化：右偏 15cm 附近
-        local_mug_z = torch.zeros(num_resets, device=self.device)
-        local_mug_pos = torch.stack([local_mug_x, local_mug_y, local_mug_z], dim=-1)
+        local_object_x = 0.22 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.10 # 前後 5cm 隨機
+        local_object_y = -0.15 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.08 # 針對右臂優化：右偏 15cm 附近
+        local_object_z = torch.zeros(num_resets, device=self.device)
+        local_object_pos = torch.stack([local_object_x, local_object_y, local_object_z], dim=-1)
 
         # 2. 將本地坐標旋轉到世界坐標 (考慮機器人的 Yaw 和 Pitch)
-        world_mug_offset = quat_apply(robot_quats, local_mug_pos)
-        sample_mug_pos = robot_base_pos + world_mug_offset
-        # 強制馬克杯貼合桌面高度
-        sample_mug_pos[:, 2] = self.initial_object_z[env_ids]
+        world_object_offset = quat_apply(robot_quats, local_object_pos)
+        sample_object_pos = robot_base_pos + world_object_offset
+        # 強制物品貼合桌面高度
+        sample_object_pos[:, 2] = self.initial_object_z[env_ids]
         
         # 3. 邊界檢查 (防止機器人旋轉太極端導致物品出桌)
-        sample_mug_pos[:, 0] = torch.clamp(sample_mug_pos[:, 0], min=0.10, max=0.45)
-        sample_mug_pos[:, 1] = torch.clamp(sample_mug_pos[:, 1], min=-0.35, max=0.35)
-        self.root_state[object_indices, :3] = sample_mug_pos
+        sample_object_pos[:, 0] = torch.clamp(sample_object_pos[:, 0], min=0.10, max=0.45)
+        sample_object_pos[:, 1] = torch.clamp(sample_object_pos[:, 1], min=-0.35, max=0.35)
+        self.root_state[object_indices, :3] = sample_object_pos
 
         # 設定物品初始旋轉 (維持對準手部，但增加隨機雜訊)
-        initial_mug_rot = torch.tensor([0, 0, 0, 1], dtype=torch.float32, device=self.device).unsqueeze(0).repeat(num_resets, 1)
+        initial_object_rot = torch.tensor([0, 0, 0, 1], dtype=torch.float32, device=self.device).unsqueeze(0).repeat(num_resets, 1)
         aa_rot = torch.zeros(num_resets, 3, device=self.device)
-        # 讓馬克杯手柄大致朝向手臂
+        # 讓物品手柄大致朝向手臂
         aa_rot[:, 2] = np.pi + (torch.rand(num_resets, device=self.device) - 0.5) * 0.5
-        self.root_state[object_indices, 3:7] = quat_mul(axisangle2quat(aa_rot), initial_mug_rot)
+        self.root_state[object_indices, 3:7] = quat_mul(axisangle2quat(aa_rot), initial_object_rot)
         self.root_state[object_indices, 7:13] = 0.0
         
         # --- 同步調整 平台 (Platform) 的座標 ---
@@ -612,7 +612,7 @@ class DiabloGraspCustom3(VecTask):
         # 優化：將平台往右前方推一點 (X=0.25, Y=-0.22)，讓手臂能伸展，解決杯底過長導致抬太高的問題
         local_plat_x = 0.25 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.05
         local_plat_y = -0.22 + (torch.rand(num_resets, device=self.device) - 0.5) * 0.05
-        local_plat_pos = torch.stack([local_plat_x, local_plat_y, local_mug_z], dim=-1) # 使用相同的 Z 底層
+        local_plat_pos = torch.stack([local_plat_x, local_plat_y, local_object_z], dim=-1) # 使用相同的 Z 底層
         
         world_plat_offset = quat_apply(robot_quats, local_plat_pos)
         sample_plat_pos = robot_base_pos + world_plat_offset
@@ -778,11 +778,11 @@ def compute_diablo_reward(
     is_grasping = is_close_to_grasp & gripper_close_action
     is_lifted = (object_height > 0.03)
     
-    mug_up_vec = torch.tensor([0.0, 0.0, 1.0], device=eef_pos.device).repeat(num_envs, 1)
-    world_mug_up = tf_vector(object_rot, mug_up_vec)
+    object_up_vec = torch.tensor([0.0, 0.0, 1.0], device=eef_pos.device).repeat(num_envs, 1)
+    world_object_up = tf_vector(object_rot, object_up_vec)
     world_up = torch.tensor([0.0, 0.0, 1.0], device=eef_pos.device).repeat(num_envs, 1)
-    mug_dot_up = torch.bmm(world_mug_up.view(num_envs, 1, 3), world_up.view(num_envs, 3, 1)).squeeze(-1).squeeze(-1)
-    is_upright = (mug_dot_up > 0.85)
+    object_dot_up = torch.bmm(world_object_up.view(num_envs, 1, 3), world_up.view(num_envs, 3, 1)).squeeze(-1).squeeze(-1)
+    is_upright = (object_dot_up > 0.85)
 
     # --- 階段鎖定 (Stage Latching) 邏輯 ---
     dist_reward = torch.where(is_lifted, torch.ones_like(dist_reward) * 2.0, dist_reward)
@@ -792,7 +792,7 @@ def compute_diablo_reward(
     lift_reward = torch.where(is_grasping, 50.0 * torch.clamp(object_height, min=0.0, max=target_lift), torch.zeros_like(rot_reward))
     
     # --- 4. Transport & Placement (搬運與放置) ---
-    object_bottom_pos = object_pos - object_half_height * world_mug_up
+    object_bottom_pos = object_pos - object_half_height * world_object_up
     dist_xy_to_platform = torch.norm(object_bottom_pos[:, :2] - platform_pos[:, :2], p=2, dim=-1)
     platform_surface_z = platform_pos[:, 2] + 0.005
     dist_z_to_platform = torch.abs(object_bottom_pos[:, 2] - platform_surface_z)
@@ -807,7 +807,7 @@ def compute_diablo_reward(
     transport_reward = torch.where(~is_upright, transport_reward * 0.1, transport_reward) # 懲罰橫躺搬運
     transport_reward = torch.where(is_on_platform & is_upright, torch.ones_like(transport_reward) * 30.0, transport_reward)
 
-    orientation_reward = torch.pow(torch.clamp(mug_dot_up, min=0.0), 8) * 20.0
+    orientation_reward = torch.pow(torch.clamp(object_dot_up, min=0.0), 8) * 20.0
     orientation_reward = torch.where(is_on_platform & is_upright, torch.ones_like(rot_reward) * 20.0, 
                                      torch.where(object_height > 0.01, orientation_reward, torch.zeros_like(rot_reward)))
 
