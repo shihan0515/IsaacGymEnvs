@@ -6,7 +6,7 @@ num_envs = 4
 
 envs = isaacgymenvs.make(
     seed=0,
-    task="DiabloGraspCustom3",
+    task="DiabloBalanceGrasp",
     num_envs=num_envs,
     rl_device="cuda",
     sim_device="cuda",

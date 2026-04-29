@@ -1,0 +1,88 @@
+name: DiabloBalanceGrasp
+
+physics_engine: ${..physics_engine}
+
+env:
+  numEnvs: ${resolve_default:2048,${...num_envs}}
+  envSpacing: 2.0
+  episodeLength: 500
+
+  enableCameraSensors: False
+
+  asset:
+    assetRoot: "../../assets"
+    assetFileNamediablo: "urdf/diab/Diablo_ger/Part_gripper_col_rev/URDF/diablo_erc_visualize.urdf"
+
+  # Action control
+  actionScale: 2.0
+  wheelVelMax: 5.0          # rad/s – max wheel angular velocity
+
+  # Balance phase parameters
+  fallPitchThreshold: 0.50      # rad – episode reset if |pitch| exceeds this
+  balancedPitchThreshold: 0.18  # rad – considered "balanced" for phase timer
+  balanceMinSteps: 1            # Reduced from 5
+  graspApproachDist: 0.60       # Increased from 0.35 m to trigger Phase 1 early
+
+  # numActions / numObservations are set programmatically in the class,
+  # but declared here for reference and YAML validation.
+  numActions: 9
+  numObservations: 69
+
+  object:
+    # drill
+    objectRoot: "urdf/ycb/ycb_urdfs-main/ycb_assets/035_power_drill.urdf"
+    objectHeight: 0.1
+    objectHalfHeight: 0.05
+
+    # # mug
+    # objectRoot: "urdf/ycb/025_mug/025_mug.urdf"
+    # objectHeight: 0.085
+    # objectHalfHeight: 0.0425
+
+    # # dumbbell
+    # objectRoot: "urdf/dumbbell.urdf"
+    # objectHeight: 0.128
+    # objectHalfHeight: 0.064
+
+  # ── Master reward function scales ──────────────────────────────────────
+  rewards:
+    # Balance components (always active)
+    balanceScale: 3.0       # Gaussian pitch/roll reward × 2, max = 6.0 / step
+    aliveBonus: 2.0         # flat bonus per step while not fallen
+    heightScale: 2.0        # Gaussian height regulation, max = 2.0 / step
+
+    # Phase 0 – approach
+    approachScale: 7.0      # Reduced from 10.0 to prevent rushing.
+
+    # Phase 1 – grasping
+    distRewardScale: 5.0    # Sharper peak, high scale for precision.
+    rotRewardScale: 2.0     # Increased from 0.8 for better alignment.
+    graspRewardScale: 8.0   # Increased from 5.0 for closure success.
+    liftRewardScale: 15.0   # proportional to object lift height
+
+    # Success
+    successBonus: 500.0     # lifted + grasping + balanced + upright
+
+    # Penalties
+    fallPenalty: 100.0      # applied at instant of fall (plus reset)
+    actionPenaltyScale: 0.002
+
+sim:
+  dt: 0.0166
+  substeps: 2
+  up_axis: "z"
+  use_gpu_pipeline: ${eq:${...pipeline},"gpu"}
+  gravity: [0.0, 0.0, -9.81]
+
+  physx:
+    num_threads: ${....num_threads}
+    solver_type: ${....solver_type}
+    num_position_iterations: 8
+    num_velocity_iterations: 1
+    contact_offset: 0.005
+    rest_offset: 0.0
+    bounce_threshold_velocity: 0.2
+    max_depenetration_velocity: 100.0
+    max_gpu_contact_pairs: 8388608
+    default_buffer_size_multiplier: 5.0
+    contact_collection: 0
